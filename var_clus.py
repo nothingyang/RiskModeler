@@ -484,10 +484,16 @@ class VarClus():
             for feature in root_cluster.features:
                 if feature in model_variable:
                     # print(prefix + '|' + '*' * h_space + feature)
-                    record_list=record_list+prefix + '|' + '*' * h_space + feature+'\n'
+                    try:
+                        record_list=record_list+prefix + '|' + '*' * h_space + feature+'\n'
+                    except:
+                        record_list = prefix + '|' + '*' * h_space + feature + '\n'
                 else:
                     # print(prefix + '|' + '-' * h_space + feature)
-                    record_list=record_list+prefix + '|' + '-' * h_space + feature+'\n'
+                    try:
+                        record_list=record_list+prefix + '|' + '-' * h_space + feature+'\n'
+                    except:
+                        record_list = prefix + '|' + '-' * h_space + feature + '\n'
         return record_list
     def print_cluster_structure(self,model_variable, h_space=5):
         """

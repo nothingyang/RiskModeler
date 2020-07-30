@@ -158,6 +158,7 @@ class model():
         self.IGN_node_time = node_data[0]['previous_node_time'][0]
         self.IGN_groupingdata = node_data[0]['IGN_grouping_data']
         self.load = 'Y'
+
         if ac == 'setting':
             path_list = self.project_info[self.project_info['创建时间'] == self.IGN_node_time]['保存地址']
             error_list = []
@@ -1175,6 +1176,19 @@ class model():
                                 model_var_type=self.par_variable_type, var_clus=self.var_clus)
 
     def scorecard_data_pre(self, model_re):
+        def score_predict(scorecard, df):
+            if len(scorecard[scorecard['variable_name']=='const'])==1:
+                df['SCORE']=list(scorecard[scorecard['variable_name'] =='const']['scorecard'])[0]
+            else:
+                df['SCORE'] = 0
+            for var in list(scorecard['variable_name'].unique()):
+                if var != 'const':
+                    df['SCR_%s' % var] = 0
+                    for group in scorecard[scorecard['variable_name'] == var]['f_group']:
+                        df['SCR_%s' % var][df['f_group_%s' % var] == group] = \
+                        list(scorecard[(scorecard['variable_name'] == var) & (scorecard['f_group'] == group)]['scorecard'])[0]
+                    df['SCORE'] = df['SCORE'] + df['SCR_%s' % var]
+            return df
         if self.par_variable_type == 'WOE':
             # woe评分卡
             def woe_predict(model, intercept, df, woe_score):
@@ -1261,7 +1275,7 @@ class model():
                 add_scorecard['f_Bad_rate'] = add_scorecard.apply(lambda x: "%.2f%%" % (x['f_Bad_rate'] * 100), axis=1)
                 scorecard = scorecard.append(add_scorecard)
             B = self.par_odds_double_score / math.log(2)
-            A = self.par_odds_score_ratio + B * math.log(self.par_odds_ratio)
+            A = self.par_odds_score_ratio - B * math.log(self.par_odds_ratio)
             scorecard['SCORE'] = scorecard.apply(
                 lambda x: A - B * x['coff'] if x['variable_name'] == 'const' else -B * x['coff'] * x['woe'], axis=1)
             score_adjust = scorecard.groupby('variable_name')['SCORE'].min().reset_index().rename(
@@ -1276,14 +1290,15 @@ class model():
             f_scorecard['f_N_obs'] = f_scorecard['f_N_obs'].astype('int')
             f_scorecard['pct_f_N_obs'] = f_scorecard.apply(lambda x: "%.2f%%" % (x['pct_f_N_obs'] * 100), axis=1)
             f_scorecard = f_scorecard.sort_values(by=['variable_name', 'f_group'])
-            f_scorecard = f_scorecard[f_scorecard['variable_name'] == 'const'].append(
-                f_scorecard[f_scorecard['variable_name'] != 'const'])
+            f_scorecard = f_scorecard[f_scorecard['variable_name'] == 'const'].append(f_scorecard[f_scorecard['variable_name'] != 'const'])
             # 给数据集打分
             self.predict_train_data = woe_predict(model=woe_model_re, intercept=self.par_intercept_flag,
                                                   df=self.IGN_grouped_train_data, woe_score=woe_score)
+            self.predict_train_data =score_predict(f_scorecard, self.predict_train_data )
             if self.IGN_grouped_valid_data.empty == False:
                 self.predict_vaild_data = woe_predict(model=woe_model_re, intercept=self.par_intercept_flag,
                                                       df=self.IGN_grouped_valid_data, woe_score=woe_score)
+                self.predict_vaild_data = score_predict(f_scorecard, self.predict_vaild_data)
             else:
                 self.predict_vaild_data = pd.DataFrame()
             if self.IGN_grouped_reject_data.empty == False:
@@ -1310,6 +1325,7 @@ class model():
                 else:
                     self.predict_reject_data = woe_predict(model=woe_model_re, intercept=self.par_intercept_flag,
                                                            df=self.IGN_grouped_reject_data, woe_score=woe_score)
+                    self.predict_reject_data = score_predict(f_scorecard, self.predict_reject_data)
             else:
                 self.predict_reject_data = pd.DataFrame()
             if self.IGN_grouped_oot_data.empty == False:
@@ -1336,6 +1352,7 @@ class model():
                 else:
                     self.predict_oot_data = woe_predict(model=woe_model_re, intercept=self.par_intercept_flag,
                                                         df=self.IGN_grouped_oot_data, woe_score=woe_score)
+                    self.predict_oot_data = score_predict(f_scorecard, self.predict_oot_data)
             else:
                 self.predict_oot_data = pd.DataFrame()
         else:
@@ -1405,6 +1422,7 @@ class model():
 
             self.predict_train_data = grp_predict(model=grp_model, intercept=self.par_intercept_flag,
                                                   df=group_data_pre(self.IGN_grouped_train_data, f_scorecard))
+            self.predict_train_data = score_predict(f_scorecard, self.predict_train_data)
             if self.IGN_grouped_valid_data.empty == False:
                 self.predict_vaild_data = grp_predict(model=grp_model, intercept=self.par_intercept_flag,
                                                       df=group_data_pre(self.IGN_grouped_valid_data, f_scorecard))
@@ -1426,6 +1444,7 @@ class model():
                 else:
                     self.predict_reject_data = grp_predict(model=grp_model, intercept=self.par_intercept_flag,
                                                            df=group_data_pre(self.IGN_grouped_reject_data, f_scorecard))
+                    self.predict_reject_data = score_predict(f_scorecard, self.predict_reject_data)
             if self.IGN_grouped_oot_data.empty == False:
                 grp_vari_list = list(
                     set(grp_score[(grp_score['coff'].isnull() == False) & (grp_score['var_type'] == 'ori')][
@@ -1445,6 +1464,7 @@ class model():
                 else:
                     self.predict_oot_data = grp_predict(model=grp_model, intercept=self.par_intercept_flag,
                                                         df=group_data_pre(self.IGN_grouped_oot_data, f_scorecard))
+                    self.predict_oot_data = score_predict(f_scorecard, self.predict_oot_data)
         return f_scorecard
 
     def func_lasso_df(self, variable_list, train_target, predict_train_data, predict_vaild_data, n_job):

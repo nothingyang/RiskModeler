@@ -359,7 +359,8 @@ class scoreing():
                     self.adjustsetting()
                     self.model_start_flag = 'N'
         except Exception as e:
-             self.model_start_flag = 'N'
+            tk.messagebox.showwarning('错误', e)
+            self.model_start_flag = 'N'
     def scorecard_result_show_ui(self, event):
         try:
             if self.result_page.state() == 'normal':
@@ -376,6 +377,19 @@ class scoreing():
                                 f_group_report=self.IGN_f_group_report,
                                 model_var_type=self.par_variable_type)
     def scorecard_data_pre(self, model_re):
+        def score_predict(scorecard, df):
+            if len(scorecard[scorecard['variable_name']=='const'])==1:
+                df['SCORE']=list(scorecard[scorecard['variable_name'] =='const']['scorecard'])[0]
+            else:
+                df['SCORE'] = 0
+            for var in list(scorecard['variable_name'].unique()):
+                if var != 'const':
+                    df['SCR_%s' % var] = 0
+                    for group in scorecard[scorecard['variable_name'] == var]['f_group']:
+                        df['SCR_%s' % var][df['f_group_%s' % var] == group] = \
+                        list(scorecard[(scorecard['variable_name'] == var) & (scorecard['f_group'] == group)]['scorecard'])[0]
+                    df['SCORE'] = df['SCORE'] + df['SCR_%s' % var]
+            return df
         if self.par_variable_type == 'WOE':
             # woe评分卡
             def woe_predict(model, intercept, df, woe_score):
@@ -420,6 +434,7 @@ class scoreing():
             # 给数据集打分
             self.predict_score_data = woe_predict(model=woe_model_re, intercept=self.par_intercept_flag,
                                                   df=self.grouped_score_data, woe_score=woe_score)
+            self.predict_score_data = score_predict(self.f_scorecard, self.predict_score_data)
         else:
             # group 评分卡
             grp_ppp = model_re
@@ -476,6 +491,7 @@ class scoreing():
                 return df
             self.predict_score_data = grp_predict(model=grp_model, intercept=self.par_intercept_flag,
                                                   df=group_data_pre(self.grouped_score_data, f_scorecard))
+            self.predict_score_data = score_predict(self.f_scorecard, self.predict_score_data)
     def reult_show_only(self, result_page):
         score_result_ui(mainframe=result_page,
                         predict_train_data=self.predict_train_data,

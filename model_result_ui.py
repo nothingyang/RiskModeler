@@ -239,7 +239,7 @@ class scorecard_result_ui():
         tree.pack(side=TOP,fill=tk.BOTH,expand=NO)
         final2.pack(side=TOP, anchor='w',fill='both',expand=NO,  padx=5, pady=5)
 
-        preds_t=self.predict_train_data[self.train_target] 
+        preds_t=self.predict_train_data[self.train_target]
         labels_t=self.predict_train_data['SCORECARD_LR_p_1']
         #train------------------------------------
         if predict_vaild_data.empty==True:
@@ -974,121 +974,75 @@ class scorecard_result_ui():
         self.master.config(menu = menubar)
     def PlotKS(self,preds_t, labels_t, n, asc,preds_v, labels_v,
                    preds_o, labels_o,preds_r, labels_r,flag_oot_data,flag_oot_target,flag_reject_data, flag_reject_target,flag_v):
-        # preds is score: asc=1
-        # preds is prob: asc=0
-        def calculate_data(preds, labels, n, asc):
-            gg=plt.figure()
-            pred = preds  # 预测值
-            bad = labels  # 取1为bad, 0为good
-            ksds = pd.DataFrame({'bad': bad, 'pred': pred})
-            ksds['good'] = 1 - ksds.bad
 
-            if asc == 1:
-                ksds1 = ksds.sort_values(by=['pred', 'bad'], ascending=[True, True])
-            elif asc == 0:
-                ksds1 = ksds.sort_values(by=['pred', 'bad'], ascending=[False, True])
-            ksds1.index = range(len(ksds1.pred))
-            ksds1['cumsum_good1'] = 1.0 * ksds1.good.cumsum() / sum(ksds1.good)
-            ksds1['cumsum_bad1'] = 1.0 * ksds1.bad.cumsum() / sum(ksds1.bad)
-
-            if asc == 1:
-                ksds2 = ksds.sort_values(by=['pred', 'bad'], ascending=[True, False])
-            elif asc == 0:
-                ksds2 = ksds.sort_values(by=['pred', 'bad'], ascending=[False, False])
-            ksds2.index = range(len(ksds2.pred))
-            ksds2['cumsum_good2'] = 1.0 * ksds2.good.cumsum() / sum(ksds2.good)
-            ksds2['cumsum_bad2'] = 1.0 * ksds2.bad.cumsum() / sum(ksds2.bad)
-
-            # ksds1 ksds2 -> average
-            ksds = ksds1[['cumsum_good1', 'cumsum_bad1']]
-            ksds['cumsum_good2'] = ksds2['cumsum_good2']
-            ksds['cumsum_bad2'] = ksds2['cumsum_bad2']
-            ksds['cumsum_good'] = (ksds['cumsum_good1'] + ksds['cumsum_good2']) / 2
-            ksds['cumsum_bad'] = (ksds['cumsum_bad1'] + ksds['cumsum_bad2']) / 2
-
-            # ks
-            ksds['ks'] = ksds['cumsum_bad'] - ksds['cumsum_good']
-            ksds['tile0'] = range(1, len(ksds.ks) + 1)
-            ksds['tile'] = 1.0 * ksds['tile0'] / len(ksds['tile0'])
-
-            qe = list(np.arange(0, 1, 1.0 / n))
-            qe.append(1)
-            qe = qe[1:]
-
-            ks_index = pd.Series(ksds.index)
-            ks_index = ks_index.quantile(q=qe)
-            ks_index = np.ceil(ks_index).astype(int)
-            ks_index = list(ks_index)
-
-            ksds = ksds.loc[ks_index]
-            ksds = ksds[['tile', 'cumsum_good', 'cumsum_bad', 'ks']]
-            ksds0 = np.array([[0, 0, 0, 0]])
-            ksds = np.concatenate([ksds0, ksds], axis=0)
-            ksds = pd.DataFrame(ksds, columns=['tile', 'cumsum_good', 'cumsum_bad', 'ks'])
-
-            ks_value = ksds.ks.max()
-            ks_pop = ksds.tile[ksds.ks.idxmax()]
-            return ksds,ks_pop,ks_value
-
-        ksds_t,ks_pop_t,ks_value_t=calculate_data(preds_t, labels_t, n, asc)
+        def calculate_data(preds, labels):
+            data=pd.DataFrame({'pred':preds,'y_label':labels})
+            # data['label']=data['y_label'].apply(lambda x: 'Y' if x==1 else 'N' )
+            crossfreq = pd.crosstab(data['pred'], data['y_label'])
+            crossfreq['total'] = crossfreq[0] + crossfreq[1]
+            crossdens = crossfreq.cumsum(axis=0) / crossfreq.sum()
+            crossdens['gap'] = abs(crossdens[0] - crossdens[1])
+            ks = crossdens[crossdens['gap'] == crossdens['gap'].max()]
+            return ks , crossdens
+        ks_t , crossdens_t=calculate_data( labels_t,preds_t)
         if flag_v==True:
-            ksds_v,ks_pop_v,ks_value_v=calculate_data(preds_v, labels_v, n, asc)
-            
+            ks_v , crossdens_v=calculate_data( labels_v,preds_v)
+
         if flag_oot_data==True and flag_oot_target==True:
-            ksds_o,ks_pop_o,ks_value_o=calculate_data(preds_o, labels_o, n, asc)
+            ks_o , crossdens_o=calculate_data( labels_o,preds_o)
         if flag_reject_data==True and flag_reject_target==True:
-            ksds_r,ks_pop_r,ks_value_r=calculate_data(preds_r, labels_r, n, asc)
+            ks_r , crossdens_r=calculate_data( labels_r,preds_r)
         try:
             plt.close()
         except:
             pass
         gg=plt.figure()
         # chart
-        plt.plot(ksds_t.tile, ksds_t.cumsum_good, label='训练累计好占比',
+        plt.plot(crossdens_t['total'], crossdens_t[0], label='训练累计好占比',
                  color='blue', linestyle='-', linewidth=2)
 
-        plt.plot(ksds_t.tile, ksds_t.cumsum_bad, label='训练累计坏占比',
+        plt.plot(crossdens_t['total'], crossdens_t[1], label='训练累计坏占比',
                  color='red', linestyle='-', linewidth=2)
 
-        plt.plot(ksds_t.tile, ksds_t.ks, label='训练ks曲线',
+        plt.plot(crossdens_t['total'], crossdens_t['gap'], label='训练ks曲线',
                  color='green', linestyle='-', linewidth=2)
         if flag_v==True:
-            plt.plot(ksds_v.tile, ksds_v.cumsum_good, label='验证累计好占比',
+            plt.plot(crossdens_v['total'], crossdens_v[0], label='验证累计好占比',
              color='blue', linestyle='--', linewidth=2)
 
-            plt.plot(ksds_v.tile, ksds_v.cumsum_bad, label='验证累计坏占比',
+            plt.plot(crossdens_v['total'], crossdens_v[1], label='验证累计坏占比',
                      color='red', linestyle='--', linewidth=2)
 
-            plt.plot(ksds_v.tile, ksds_v.ks, label='验证ks曲线',
+            plt.plot(crossdens_v['total'], crossdens_v['gap'], label='验证ks曲线',
                      color='green', linestyle='--', linewidth=2)
-            
+
         if flag_oot_data==True and flag_oot_target==True:
-            plt.plot(ksds_o.tile, ksds_o.cumsum_good, label='OOT累计好占比',
+            plt.plot(crossdens_o['total'], crossdens_o[0], label='OOT累计好占比',
               linestyle='--', linewidth=2)
 
-            plt.plot(ksds_o.tile, ksds_o.cumsum_bad, label='OOT累计坏占比',
+            plt.plot(crossdens_o['total'], crossdens_o[1], label='OOT累计坏占比',
                       linestyle='--', linewidth=2)
 
-            plt.plot(ksds_o.tile, ksds_o.ks, label='OOT ks曲线',
+            plt.plot(crossdens_o['total'], crossdens_o['gap'], label='OOT ks曲线',
                       linestyle='--', linewidth=2)
         if flag_reject_data==True and flag_reject_target==True:
-            plt.plot(ksds_r.tile, ksds_r.cumsum_good, label='拒绝累计好占比',
+            plt.plot(crossdens_r['total'], crossdens_r[0], label='拒绝累计好占比',
               linestyle='--', linewidth=2)
 
-            plt.plot(ksds_r.tile, ksds_r.cumsum_bad, label='拒绝累计坏占比',
+            plt.plot(crossdens_r['total'], crossdens_r[1], label='拒绝累计坏占比',
                       linestyle='--', linewidth=2)
 
-            plt.plot(ksds_r.tile, ksds_r.ks, label='拒绝 ks曲线',
+            plt.plot(crossdens_r['total'], crossdens_r['gap'], label='拒绝 ks曲线',
                       linestyle='--', linewidth=2)
         plt.legend()
-        plt.axvline(ks_pop_t, color='gray', linestyle='--')
-        tiltle='训练KS=%s ' % np.round(ks_value_t, 4) +'at Pop=%s' % np.round(ks_pop_t, 4) 
+        plt.axvline(list(ks_t['total'])[0], color='gray', linestyle='--')
+        tiltle='训练KS=%s ' % np.round(list(ks_t['gap'])[0], 4) +'at Pop=%s' % np.round(list(ks_t['total'])[0], 4)
         if flag_v==True:
-            tiltle=tiltle+'验证KS=%s ' % np.round(ks_value_v, 4) +'at Pop=%s' % np.round(ks_pop_v, 4)
+            tiltle=tiltle+'\n验证KS=%s ' % np.round(list(ks_v['gap'])[0], 4) +'at Pop=%s' % np.round(list(ks_v['total'])[0], 4)
         if flag_reject_data==True and flag_reject_target==True:
-            tiltle=tiltle+'\n拒绝KS=%s ' % np.round(ks_value_r, 4) +'at Pop=%s' % np.round(ks_pop_r, 4)
+            tiltle=tiltle+'\n拒绝KS=%s ' % np.round(list(ks_r['gap'])[0], 4) +'at Pop=%s' % np.round(list(ks_r['total'])[0], 4)
         if flag_oot_data==True and flag_oot_target==True:
-            tiltle=tiltle+'\nOOTKS=%s ' % np.round(ks_value_o, 4) +'at Pop=%s' % np.round(ks_pop_o, 4)
+            tiltle=tiltle+'\nOOTKS=%s ' % np.round(list(ks_o['gap'])[0], 4) +'at Pop=%s' % np.round(list(ks_o['total'])[0], 4)
         plt.title(tiltle, fontsize=12)
         plt.tight_layout()
         return gg
@@ -1398,6 +1352,7 @@ class scorecard_result_ui():
         pre_plot['total_pct']=pre_plot['count']/pre_plot['count'].sum()
         pre_plot['good_pct']=pre_plot['total_pct']-pre_plot['bad_pct']
         pre_plot=pd.merge(pre_plot,full,how='outer',on='plot_calibraition_flag').fillna(0)
+        pre_plot=pre_plot.sort_values(by='plot_calibraition_flag')
 
         if vaild_data==True:
             df_v['plot_calibraition_flag'] = df_v['SCORECARD_LR_p_1'].apply(lambda x: cal(x)) 
@@ -1406,6 +1361,7 @@ class scorecard_result_ui():
             pre_plot_v['total_pct']=pre_plot_v['count']/pre_plot_v['count'].sum()
             pre_plot_v['good_pct']=pre_plot_v['total_pct']-pre_plot_v['bad_pct']
             pre_plot_v=pd.merge(pre_plot_v,full,how='outer',on='plot_calibraition_flag').fillna(0)
+            pre_plot_v = pre_plot_v.sort_values(by='plot_calibraition_flag')
         if oot_data==True:
             if oot_target_flag==True:
                 df_t['plot_calibraition_flag'] = df_t['SCORECARD_LR_p_1'].apply(lambda x: cal(x)) 
@@ -1418,6 +1374,7 @@ class scorecard_result_ui():
                 pre_plot_t=df_t.groupby('plot_calibraition_flag')['plot_calibraition_flag'].agg({'count'}).reset_index()
                 pre_plot_t['total_pct']=pre_plot_t['count']/pre_plot_t['count'].sum()
             pre_plot_t=pd.merge(pre_plot_t,full,how='outer',on='plot_calibraition_flag').fillna(0)
+            pre_plot_t = pre_plot_t.sort_values(by='plot_calibraition_flag')
 
         if reject_data==True:
             if reject_target_flag==True:
@@ -1431,6 +1388,7 @@ class scorecard_result_ui():
                 pre_plot_r=df_r.groupby('plot_calibraition_flag')['plot_calibraition_flag'].agg({'count'}).reset_index()
                 pre_plot_r['total_pct']=pre_plot_r['count']/pre_plot_r['count'].sum()
             pre_plot_r=pd.merge(pre_plot_r,full,how='outer',on='plot_calibraition_flag').fillna(0)
+            pre_plot_r = pre_plot_r.sort_values(by='plot_calibraition_flag')
 
         gg=plt.figure()
         N = len(pre_plot)

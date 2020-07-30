@@ -243,13 +243,14 @@ class IGN():
                 tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (add, e))
     def Start_UI(self):
         self.start_window_base = self.master
-        width = self.master.winfo_screenwidth() * 0.18
+        width = max(self.master.winfo_screenwidth() * 0.18,400)
         height = self.master.winfo_screenheight() * 0.8
         screenwidth = self.master.winfo_screenwidth()
         screenheight = self.master.winfo_screenheight()
         self.start_window_base.geometry(
             '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
         self.start_window_base.title('交互式分组参数设置')
+        print(height,width)
     def adjustsetting(self):
         # 导入数据
         self.node_intro=LabelFrame(self.start_window_base, text='模块名称:')
@@ -432,7 +433,10 @@ class IGN():
         self.entry_min_pct_sample.grid(column=1, row=12, sticky=(W))
         self.entry_min_pct_sample.bind('<Return>',
                                        lambda event: self.int_num_check(event, 'entry_min_pct_sample', 'pct'))
-        self.start_window_tree_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        if self.master.winfo_screenheight() <1000:
+            self.start_window_tree_setting.grid(column=5, row=1,columnspan=3, sticky=(W), padx=10, pady=10)
+        else:
+            self.start_window_tree_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
 
         # 变量拒绝设置
         self.start_window_variable_reject_setting = LabelFrame(self.start_window_base, text='变量拒绝设置:')
@@ -455,8 +459,11 @@ class IGN():
         self.iv_reject_min = Entry(self.start_window_variable_reject_setting, textvariable=iv_reject, width=18, bd=1)
         self.iv_reject_min.grid(column=1, row=15, sticky=(W))
         self.iv_reject_min.bind('<Return>', lambda event: self.int_num_check(event, 'iv_reject_min', 'iv'))
-        self.start_window_variable_reject_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
 
+        if self.master.winfo_screenheight() <1000:
+            self.start_window_variable_reject_setting.grid(column=5, row=2,columnspan=3, sticky=(W), padx=10, pady=10)
+        else:
+            self.start_window_variable_reject_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
         self.button_setting_save = ttk.Button(self.start_window_base, text='退出')
         self.button_setting_save.grid(column=0, row=7, sticky=(W), padx=10, pady=10)
         self.button_setting_save.bind("<Button-1>", self.save_project)

@@ -339,7 +339,21 @@ class inputdata():
 
     def variable_role_check(self, event):
         # 判断是否需要设置target，以及设置是否正确
-        if len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 0:
+        error=0
+        if 'SCORE' in self.data_variable_setting['变量名称']:
+            error=1
+            tk.messagebox.showwarning('错误', "SCORE 将用在以好打分中请更改变量名")
+        elif 'SCORECARD_LR_p_1' in self.data_variable_setting['变量名称']:
+            error = 1
+            tk.messagebox.showwarning('错误', "SCORECARD_LR_p_1 将用在以好打分中请更改变量名")
+        elif len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) == 1:
+                timeid=list(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']['变量名称'])[0]
+                if len(list(self.data_set[timeid].unique()))>30:
+                    error=1
+                    tk.messagebox.showwarning('错误', "Timeid 数量太多请合并日期")
+
+
+        if error==0 and len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 0:
             if self.data_role == 'Training model':
                 tk.messagebox.showwarning('错误', "训练集中必须有且只有一个目标")
             else:
@@ -347,7 +361,7 @@ class inputdata():
                     tk.messagebox.showwarning('错误', "最多只有一个TimeID")
                 else:
                     self.save_d()
-        elif len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 1:
+        elif error==0 and len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 1:
             target = list(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']['变量名称'])[0]
             if set(self.data_set[target].unique()) != set([0, 1]):
                 tk.messagebox.showwarning('错误', "目标角色只能有【0，1】两个值")
