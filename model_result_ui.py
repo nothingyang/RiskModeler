@@ -1521,7 +1521,7 @@ class scorecard_result_ui():
             final['bad_rate'] = final['sum'] / final['count']
             final['Group'] = final['f_group_%s' % modify_var]
             final = pd.merge(base_df, final, how='outer', on=['Group', 'timeid'])
-        if self.predict_vaild_data.empty==False:
+        if (self.predict_vaild_data.empty==False)&(self.train_time_id != None):
             base_list=[]
             for gr in grouped_validdata['f_group_%s' % modify_var].unique():
                 for ti in grouped_validdata[self.train_time_id].unique():

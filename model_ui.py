@@ -1276,6 +1276,9 @@ class model():
                 scorecard = scorecard.append(add_scorecard)
             B = self.par_odds_double_score / math.log(2)
             A = self.par_odds_score_ratio - B * math.log(self.par_odds_ratio)
+            if self.par_intercept_flag == False:
+                add_df=pd.DataFrame([{'variable_name':'const','coff':0}])
+                scorecard=scorecard.append(add_df)
             scorecard['SCORE'] = scorecard.apply(
                 lambda x: A - B * x['coff'] if x['variable_name'] == 'const' else -B * x['coff'] * x['woe'], axis=1)
             score_adjust = scorecard.groupby('variable_name')['SCORE'].min().reset_index().rename(
@@ -1376,6 +1379,9 @@ class model():
             scorecard = pd.merge(grp_model_df, group_report, how='left', on=['variable_name', 'f_group'])[
                 ['variable_name', 'f_group', 'var_type', 'f_N_obs', 'label', 'f_Bad_rate', 'pct_f_N_obs', 'coff',
                  'woe']]
+            if self.par_intercept_flag == False:
+                add_df=pd.DataFrame([{'variable_name':'const','coff':0}])
+                scorecard=scorecard.append(add_df)
             B = self.par_odds_double_score / math.log(2)
             A = self.par_odds_score_ratio + B * math.log(self.par_odds_ratio)
             scorecard['SCORE'] = scorecard.apply(
