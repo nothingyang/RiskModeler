@@ -759,8 +759,6 @@ class UserInterfacea():
             final['popu_pct'] = final['count'] / final['total_num']
             final['bad_rate'] = final['sum'] / final['count']
             final['Group'] = final['f_group_%s' % self.modify_var]
-            final.to_csv(r'D:\SynologyDrive\india_project\final.csv')
-            base_df.to_csv(r'D:\SynologyDrive\india_project\base.csv')
             final = pd.merge(base_df, final, how='outer', on=['Group', self.timeid_train])
             node_type = 'train'
         elif select_data == 'Valid':

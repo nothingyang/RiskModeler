@@ -1128,7 +1128,17 @@ class IGN():
                 self.master.update()
                 if (self.par_use_freezing_flag == '否') | (self.groupingdata.empty == True):
                     if (self.par_use_specialcode_flag == '是') & (self.par_specialcode_data.empty == False):
-                        special_code = self.par_specialcode_data
+                        if len(self.par_specialcode_data[self.par_specialcode_data['variable']=="_ALL_"])>0:
+                            sp_values=list(self.par_specialcode_data[self.par_specialcode_data['variable']=="_ALL_"]['value'])
+                            others_df=self.par_specialcode_data[self.par_specialcode_data['variable']!="_ALL_"]
+                            for value in sp_values:
+                                temp=pd.DataFrame()
+                                temp['variable']=self.varnum
+                                temp['value']=value
+                                others_df=others_df.append(temp)
+                            special_code=others_df
+                        else:
+                            special_code = self.par_specialcode_data
                     else:
                         special_code = pd.DataFrame()
                     if self.par_char_restric_flag == '不限制':

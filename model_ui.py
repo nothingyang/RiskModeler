@@ -162,9 +162,12 @@ class model():
         if ac == 'setting':
             path_list = self.project_info[self.project_info['创建时间'] == self.IGN_node_time]['保存地址']
             error_list = []
-
+            change_list=[]
             if len(path_list) == 0:
-                error_list = error_list + [{'name': self.IGN_node_name, 'time': self.IGN_node_time}]
+                change_list = change_list + [{'name': self.IGN_node_name, 'time': self.IGN_node_time}]
+                path_list = self.project_info[self.project_info['模块名字'] == self.IGN_node_name]['保存地址']
+                if len(path_list) == 0:
+                    error_list = error_list + [{'name': self.IGN_node_name, 'time': self.IGN_node_time}]
 
             def continu(event):
                 for child in self.master.winfo_children():
@@ -197,6 +200,7 @@ class model():
                 button_back.bind("<Button-1>", back)
             else:
                 try:
+
                     path = path_list[0]
                     fr = open(path, 'rb')
                     node_data = pickle.load(fr)
@@ -244,6 +248,9 @@ class model():
             if ac == 'setting' and len(error_list) == 0:
                 self.Start_UI()
                 self.adjustsetting()
+            if len(change_list) > 0:
+                tk.messagebox.showwarning('错误', "该模块引用的%s 模块 没有在项目中找到，\n可能该模块已经更新，删除，"
+                                                                "或未导入\n您可以重新选择分组数据或查看旧模型信息" % (change_list))
         # 'data_variable_setting': self.par_traindatavariable_setting,
         # 'reject_data_variable_setting': self.par_rejectdatavariable_setting,
         # 'oot_data_variable_setting': self.par_ootdatavariable_setting,
@@ -637,6 +644,11 @@ class model():
             self.model_ppp = [self.record_list_modify, self.model_modify, self.model_variable_df_modify, ]
             self.f_scorecard = self.scorecard_data_pre(self.model_ppp)
             self.node_setting['model'] = self.model_ppp
+            self.node_setting['predict_train_data']= self.predict_train_data
+            self.node_setting['predict_vaild_data']= self.predict_vaild_data
+            self.node_setting['predict_reject_data']= self.predict_reject_data
+            self.node_setting['predict_oot_data']= self.predict_oot_data
+            self.node_setting['scorecard_df']= self.f_scorecard
             try:
                 error2_f.destroy()
             except:
