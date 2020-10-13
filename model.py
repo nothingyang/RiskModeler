@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import math
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 from joblib import Parallel, delayed
 
 import joblib
@@ -15,7 +16,7 @@ class lrmodel():
         pass
     def woe_logistic_regression(self,mianframe, inditor_pct, inditor_sample, var, p_value_entry,p_value_stay, add_inditor,
                                 intercept, criterion, df, response, direction, show_step, apply_restrict, n_job=None,
-                                flag_IGN=True):
+                                flag_IGN=True,weight_flag=False,weight_var=None):
         tip = Toplevel(mianframe)
         self.text = StringVar()
         self.label_list=''
@@ -132,6 +133,15 @@ class lrmodel():
                             logit_mod = sm.Logit(df[response], sm.add_constant(df[selected + [candidate]]))
                         else:
                             logit_mod = sm.Logit(df[response], df[selected + [candidate]])
+                        if (weight_flag == True) and (weight_var!=None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response], sm.add_constant(df[selected + [candidate]])
+                                              , family=sm.families.Binomial(),
+                                              freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[selected + [candidate]]
+                                              , family=sm.families.Binomial(),
+                                              freq_weights=np.asarray(df[weight_var]))
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
                         pvalue = result.pvalues[candidate]
@@ -185,23 +195,42 @@ class lrmodel():
                                 self.label_list = self.label_list + '\nAdding %s, %s = %.3f' % (score_df.iloc[0]['var'], criterion, best_score)
                                 self.text.set(self.label_list)
                                 mianframe.update()
-                            if intercept:  # 是否有截距
-                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
-
+                            if (weight_flag == True) and (weight_var!=None):
+                                if intercept:
+                                    logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
+                                else:
+                                    logit_mod = sm.GLM(df[response], df[selected]
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
                             else:
-                                logit_mod = sm.Logit(df[response], df[selected])
+                                if intercept:  # 是否有截距
+                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+                                else:
+                                    logit_mod = sm.Logit(df[response], df[selected])
+
                             model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
                             record_list.append(model.summary2())
                     else:
                         flag_next = False
                 else:
                     flag_next = False
-
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
-
+            if (weight_flag == True) and (weight_var!=None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[selected]
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[selected])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+
+                else:
+                    logit_mod = sm.Logit(df[response], df[selected])
 
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
@@ -237,10 +266,20 @@ class lrmodel():
                     result_list = []
                     for i in range(num * lent, min((num + 1) * lent, len(remaining_list))):
                         candidate = remaining_list[i]
-                        if intercept:  # 是否有截距
-                            logit_mod = sm.Logit(df[response], sm.add_constant(df[selected + [candidate]]))
+                        if (weight_flag == True) and (weight_var!=None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response], sm.add_constant(df[selected + [candidate]])
+                                              , family=sm.families.Binomial(),
+                                              freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[selected + [candidate]]
+                                              , family=sm.families.Binomial(),
+                                              freq_weights=np.asarray(df[weight_var]))
                         else:
-                            logit_mod = sm.Logit(df[response], df[selected + [candidate]])
+                            if intercept:  # 是否有截距
+                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected + [candidate]]))
+                            else:
+                                logit_mod = sm.Logit(df[response], df[selected + [candidate]])
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
                         pvalue = result.pvalues[candidate]
@@ -296,29 +335,59 @@ class lrmodel():
                                 self.label_list = self.label_list + '\nAdding %s, %s = %.3f' % (score_df.iloc[0]['var'], criterion, best_score)
                                 self.text.set(self.label_list)
                                 mianframe.update()
-                            if intercept:  # 是否有截距
-                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
-
+                            if (weight_flag == True) and (weight_var!=None):
+                                if intercept:
+                                    logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
+                                else:
+                                    logit_mod = sm.GLM(df[response], df[selected]
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
                             else:
-                                logit_mod = sm.Logit(df[response], df[selected])
+                                if intercept:  # 是否有截距
+                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+
+                                else:
+                                    logit_mod = sm.Logit(df[response], df[selected])
                             model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
                             record_list.append(model.summary2())
                         flag_e = True
                         while (flag_e == True) and (len(selected)>1):
-                            if intercept:  # 是否有截距
-                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+                            if (weight_flag == True) and (weight_var!=None):
+                                if intercept:
+                                    logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
+                                else:
+                                    logit_mod = sm.GLM(df[response], df[selected]
+                                                        , family=sm.families.Binomial(),
+                                                        freq_weights=np.asarray(df[weight_var]))
                             else:
-                                logit_mod = sm.Logit(df[response], df[selected])
+                                if intercept:  # 是否有截距
+                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+                                else:
+                                    logit_mod = sm.Logit(df[response], df[selected])
                             result_full = logit_mod.fit(method='lbfgs', maxiter=100)
                             #                 def func(num):
                             result_list = []
                             for i in range(0, len(selected)):
                                 candidate = selected[i]
-                                if intercept:  # 是否有截距
-                                    logit_mod = sm.Logit(df[response],
-                                                         sm.add_constant(df[list(set(selected) - set([candidate]))]))
+                                if (weight_flag == True) and (weight_var!=None):
+                                    if intercept:
+                                        logit_mod = sm.GLM(df[response],sm.add_constant(df[list(set(selected) - set([candidate]))])
+                                                            , family=sm.families.Binomial(),
+                                                            freq_weights=np.asarray(df[weight_var]))
+                                    else:
+                                        logit_mod = sm.GLM(df[response], df[list(set(selected) - set([candidate]))]
+                                                            , family=sm.families.Binomial(),
+                                                            freq_weights=np.asarray(df[weight_var]))
                                 else:
-                                    logit_mod = sm.Logit(df[response], df[list(set(selected) - set([candidate]))])
+                                    if intercept:  # 是否有截距
+                                        logit_mod = sm.Logit(df[response],
+                                                             sm.add_constant(df[list(set(selected) - set([candidate]))]))
+                                    else:
+                                        logit_mod = sm.Logit(df[response], df[list(set(selected) - set([candidate]))])
                                 result = logit_mod.fit(method='lbfgs', maxiter=100)
                                 var = candidate
                                 pvalue = result_full.pvalues[candidate]
@@ -349,10 +418,20 @@ class lrmodel():
                                             self.label_list = self.label_list + '\nDelet %s, %s = %.3f' % (score_df.iloc[0]['var'], criterion, best_score)
                                             self.text.set(self.label_list)
                                             mianframe.update()
-                                        if intercept:  # 是否有截距
-                                            logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+                                        if (weight_flag == True) and (weight_var!=None):
+                                            if intercept:
+                                                logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                                                    , family=sm.families.Binomial(),
+                                                                    freq_weights=np.asarray(df[weight_var]))
+                                            else:
+                                                logit_mod = sm.GLM(df[response], df[selected]
+                                                                    , family=sm.families.Binomial(),
+                                                                    freq_weights=np.asarray(df[weight_var]))
                                         else:
-                                            logit_mod = sm.Logit(df[response], df[selected])
+                                            if intercept:  # 是否有截距
+                                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+                                            else:
+                                                logit_mod = sm.Logit(df[response], df[selected])
                                         model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
                                         record_list.append(model.summary2())
 
@@ -370,11 +449,21 @@ class lrmodel():
                                         self.label_list = self.label_list + '\nDelet %s, pvalue = %.5f' % (score_df.iloc[0]['var'], p_big)
                                         self.text.set(self.label_list)
                                         mianframe.update()
-                                        if intercept:  # 是否有截距
-                                            logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
-
+                                        if (weight_flag == True) and (weight_var!=None):
+                                            if intercept:
+                                                logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                                                    , family=sm.families.Binomial(),
+                                                                    freq_weights=np.asarray(df[weight_var]))
+                                            else:
+                                                logit_mod = sm.GLM(df[response], df[selected]
+                                                                    , family=sm.families.Binomial(),
+                                                                    freq_weights=np.asarray(df[weight_var]))
                                         else:
-                                            logit_mod = sm.Logit(df[response], df[selected])
+                                            if intercept:  # 是否有截距
+                                                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+
+                                            else:
+                                                logit_mod = sm.Logit(df[response], df[selected])
                                         model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
                                         record_list.append(model.summary2())
                                     flag_e = True
@@ -392,12 +481,21 @@ class lrmodel():
                         flag_next = False
                 else:
                     flag_next = False
-
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
-
+            if (weight_flag == True) and (weight_var!=None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[selected])
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[selected]
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[selected])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[selected]))
+
+                else:
+                    logit_mod = sm.Logit(df[response], df[selected])
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
             if show_step:  # 是否显示逐步回归过程
@@ -419,10 +517,20 @@ class lrmodel():
                 self.text.set(self.label_list)
                 mianframe.update()
             # 当变量未剔除完，并且当前评分更新时进行循环
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[var_clearn]))
+            if (weight_flag == True) and (weight_var!=None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[var_clearn])
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[var_clearn]
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[var_clearn])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[var_clearn]))
+                else:
+                    logit_mod = sm.Logit(df[response], df[var_clearn])
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
             if show_step:  # 是否显示逐步回归过程
@@ -445,10 +553,20 @@ class lrmodel():
                 self.text.set(self.label_list)
                 mianframe.update()
             # 当变量未剔除完，并且当前评分更新时进行循环
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[var_clearn]))
+            if (weight_flag == True) and (weight_var!=None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[var_clearn])
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[var_clearn]
+                                        , family=sm.families.Binomial(),
+                                        freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[var_clearn])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[var_clearn]))
+                else:
+                    logit_mod = sm.Logit(df[response], df[var_clearn])
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
             if show_step:  # 是否显示逐步回归过程
@@ -465,7 +583,7 @@ class lrmodel():
         return [record_list, stepwise_model, modelvar_match_df]
 
     def grp_logistic_regression(self, mianframe,var, p_value_entry,p_value_stay, intercept, criterion, df, response, direction, show_step,
-                                apply_restrict, n_job=None):
+                                apply_restrict, n_job=None,weight_flag = False,weight_var=None):
         tip = Toplevel(mianframe)
         self.text = StringVar()
         self.label_list=''
@@ -549,11 +667,22 @@ class lrmodel():
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                         else:
                             group_variable_select = []
-                        if intercept:  # 是否有截距
-                            logit_mod = sm.Logit(df[response],
-                                                 sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                        if (weight_flag == True) and (weight_var != None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate])
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[group_variable_select + group_variable_candidate]
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
                         else:
-                            logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
+                            if intercept:  # 是否有截距
+                                logit_mod = sm.Logit(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                            else:
+                                logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
                         pvalue_df = pd.DataFrame(result.pvalues).reset_index()
@@ -603,11 +732,21 @@ class lrmodel():
                 else:
                     flag_next = False
             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
-
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+
+                else:
+                    logit_mod = sm.Logit(df[response], df[group_variable_select])
 
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
@@ -646,12 +785,22 @@ class lrmodel():
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                         else:
                             group_variable_select = []
-
-                        if intercept:  # 是否有截距
-                            logit_mod = sm.Logit(df[response],
-                                                 sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                        if (weight_flag == True) and (weight_var != None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate])
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[group_variable_select + group_variable_candidate]
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
                         else:
-                            logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
+                            if intercept:  # 是否有截距
+                                logit_mod = sm.Logit(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                            else:
+                                logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
 
@@ -704,10 +853,20 @@ class lrmodel():
                         flag_e = True
                         while (flag_e == True) and (len(selected)>1):
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-                            if intercept:  # 是否有截距
-                                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+                            if (weight_flag == True) and (weight_var != None):
+                                if intercept:
+                                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                                       , family=sm.families.Binomial(),
+                                                       freq_weights=np.asarray(df[weight_var]))
+                                else:
+                                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                                       , family=sm.families.Binomial(),
+                                                       freq_weights=np.asarray(df[weight_var]))
                             else:
-                                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                                if intercept:  # 是否有截距
+                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+                                else:
+                                    logit_mod = sm.Logit(df[response], df[group_variable_select])
                             result_full = logit_mod.fit(method='lbfgs', maxiter=100)
                             result_list = []
                             for i in range(0, len(selected)):
@@ -717,11 +876,20 @@ class lrmodel():
                                     group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                                 else:
                                     group_variable_select = []
-
-                                if intercept:  # 是否有截距
-                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select) - set(group_variable_candidate))]))
+                                if (weight_flag == True) and (weight_var != None):
+                                    if intercept:
+                                        logit_mod = sm.GLM(df[response], sm.add_constant(df[list(set(group_variable_select) - set(group_variable_candidate))])
+                                                           , family=sm.families.Binomial(),
+                                                           freq_weights=np.asarray(df[weight_var]))
+                                    else:
+                                        logit_mod = sm.GLM(df[response], df[list(set(group_variable_select) - set(group_variable_candidate))]
+                                                           , family=sm.families.Binomial(),
+                                                           freq_weights=np.asarray(df[weight_var]))
                                 else:
-                                    logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(group_variable_candidate))])
+                                    if intercept:  # 是否有截距
+                                        logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select) - set(group_variable_candidate))]))
+                                    else:
+                                        logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(group_variable_candidate))])
                                 result = logit_mod.fit(method='lbfgs', maxiter=100)
                                 var = candidate
                                 pvalue_df = pd.DataFrame(result_full.pvalues).reset_index()
@@ -787,11 +955,21 @@ class lrmodel():
                 else:
                     flag_next = False
             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
-
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+
+                else:
+                    logit_mod = sm.Logit(df[response], df[group_variable_select])
 
             stepwise_model = logit_mod.fit(method='lbfgs')  # 最优模型拟合
             tip.destroy()
@@ -819,10 +997,20 @@ class lrmodel():
                 record_list.append('\nLR starting:\n')
             # 当变量未剔除完，并且当前评分更新时进行循环
             group_variable_select = variable_df[variable_df['variable'].isin(var_clearn)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+                else:
+                    logit_mod = sm.Logit(df[response], df[group_variable_select])
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
 
             if show_step:  # 是否显示逐步回归过程
@@ -838,7 +1026,7 @@ class lrmodel():
             tip.destroy()
         return [record_list, stepwise_model, modelvar_match_df]
     def grp_ind_logistic_regression(self, mianframe,var, p_value_entry,p_value_stay, intercept, criterion, df, response, direction, show_step,
-                                apply_restrict, n_job=None):
+                                apply_restrict, n_job=None,weight_flag = False,weight_var=None):
         tip = Toplevel(mianframe)
         self.text = StringVar()
         self.label_list=''
@@ -923,11 +1111,22 @@ class lrmodel():
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                         else:
                             group_variable_select = []
-                        if intercept:  # 是否有截距
-                            logit_mod = sm.Logit(df[response],
-                                                 sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                        if (weight_flag == True) and (weight_var != None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate])
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[group_variable_select + group_variable_candidate]
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
                         else:
-                            logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
+                            if intercept:  # 是否有截距
+                                logit_mod = sm.Logit(df[response],
+                                                     sm.add_constant(df[group_variable_select + group_variable_candidate]))
+                            else:
+                                logit_mod = sm.Logit(df[response], df[group_variable_select + group_variable_candidate])
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
                         pvalue_df = pd.DataFrame(result.pvalues).reset_index()
@@ -976,11 +1175,21 @@ class lrmodel():
                 else:
                     flag_next = False
             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
-
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+
+                else:
+                    logit_mod = sm.Logit(df[response], df[group_variable_select])
 
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
             tip.destroy()
@@ -1020,11 +1229,20 @@ class lrmodel():
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                         else:
                             group_variable_select = []
-
-                        if intercept:  # 是否有截距
-                            logit_mod = sm.Logit(df[response],sm.add_constant(df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))]))
+                        if (weight_flag == True) and (weight_var != None):
+                            if intercept:
+                                logit_mod = sm.GLM(df[response],sm.add_constant(df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))])
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
+                            else:
+                                logit_mod = sm.GLM(df[response], df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))]
+                                                   , family=sm.families.Binomial(),
+                                                   freq_weights=np.asarray(df[weight_var]))
                         else:
-                            logit_mod = sm.Logit(df[response], df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))])
+                            if intercept:  # 是否有截距
+                                logit_mod = sm.Logit(df[response],sm.add_constant(df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))]))
+                            else:
+                                logit_mod = sm.Logit(df[response], df[list(set(group_variable_select + group_variable_candidate)-set(remove_grp_variable))])
                         result = logit_mod.fit(method='lbfgs', maxiter=100)
                         var = candidate
 
@@ -1077,10 +1295,20 @@ class lrmodel():
                         flag_e = True
                         while (flag_e == True) and (len(selected)>1):
                             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-                            if intercept:  # 是否有截距
-                                logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))]))
+                            if (weight_flag == True) and (weight_var != None):
+                                if intercept:
+                                    logit_mod = sm.GLM(df[response], sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))])
+                                                       , family=sm.families.Binomial(),
+                                                       freq_weights=np.asarray(df[weight_var]))
+                                else:
+                                    logit_mod = sm.GLM(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))]
+                                                       , family=sm.families.Binomial(),
+                                                       freq_weights=np.asarray(df[weight_var]))
                             else:
-                                logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))])
+                                if intercept:  # 是否有截距
+                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))]))
+                                else:
+                                    logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))])
                             result_full = logit_mod.fit(method='lbfgs', maxiter=100)
                             result_list = []
                             for i in range(0, len(list(set(group_variable_select) - set(remove_grp_variable)))):
@@ -1090,11 +1318,20 @@ class lrmodel():
                                 #     group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
                                 # else:
                                 #     group_variable_select = []
-
-                                if intercept:  # 是否有截距
-                                    logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select)- set([candidate])-set(remove_grp_variable))]))
+                                if (weight_flag == True) and (weight_var != None):
+                                    if intercept:
+                                        logit_mod = sm.GLM(df[response], sm.add_constant(df[list(set(group_variable_select)- set([candidate])-set(remove_grp_variable))])
+                                                           , family=sm.families.Binomial(),
+                                                           freq_weights=np.asarray(df[weight_var]))
+                                    else:
+                                        logit_mod = sm.GLM(df[response], df[list(set(group_variable_select) - set([candidate])-set(remove_grp_variable))]
+                                                           , family=sm.families.Binomial(),
+                                                           freq_weights=np.asarray(df[weight_var]))
                                 else:
-                                    logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set([candidate])-set(remove_grp_variable))])
+                                    if intercept:  # 是否有截距
+                                        logit_mod = sm.Logit(df[response], sm.add_constant(df[list(set(group_variable_select)- set([candidate])-set(remove_grp_variable))]))
+                                    else:
+                                        logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set([candidate])-set(remove_grp_variable))])
                                 result = logit_mod.fit(method='lbfgs', maxiter=100)
                                 var = candidate
                                 pvalue =result_full.pvalues[candidate]
@@ -1161,11 +1398,22 @@ class lrmodel():
                 else:
                     flag_next = False
             group_variable_select = variable_df[variable_df['variable'].isin(selected)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response],
-                                     sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))]))
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response],
+                                         sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response],
+                                         sm.add_constant(df[list(set(group_variable_select) - set(remove_grp_variable))]))
+                else:
+                    logit_mod = sm.Logit(df[response], df[list(set(group_variable_select) - set(remove_grp_variable))])
             stepwise_model = logit_mod.fit(method='lbfgs')  # 最优模型拟合
             tip.destroy()
             if show_step:  # 是否显示逐步回归过程
@@ -1192,10 +1440,20 @@ class lrmodel():
                 record_list.append('\nLR starting:\n')
             # 当变量未剔除完，并且当前评分更新时进行循环
             group_variable_select = variable_df[variable_df['variable'].isin(var_clearn)]['list'].sum()
-            if intercept:  # 是否有截距
-                logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+            if (weight_flag == True) and (weight_var != None):
+                if intercept:
+                    logit_mod = sm.GLM(df[response], sm.add_constant(df[group_variable_select])
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
+                else:
+                    logit_mod = sm.GLM(df[response], df[group_variable_select]
+                                       , family=sm.families.Binomial(),
+                                       freq_weights=np.asarray(df[weight_var]))
             else:
-                logit_mod = sm.Logit(df[response], df[group_variable_select])
+                if intercept:  # 是否有截距
+                    logit_mod = sm.Logit(df[response], sm.add_constant(df[group_variable_select]))
+                else:
+                    logit_mod = sm.Logit(df[response], df[group_variable_select])
             stepwise_model = logit_mod.fit(method='lbfgs', maxiter=100)  # 最优模型拟合
 
             if show_step:  # 是否显示逐步回归过程

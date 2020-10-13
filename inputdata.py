@@ -346,6 +346,9 @@ class inputdata():
         elif 'SCORECARD_LR_p_1' in self.data_variable_setting['变量名称']:
             error = 1
             tk.messagebox.showwarning('错误', "SCORECARD_LR_p_1 将用在以好打分中请更改变量名")
+        elif 'const' in self.data_variable_setting['变量名称']:
+            error = 1
+            tk.messagebox.showwarning('错误', "const 将用在以后模型训练中请更改变量名")
         elif len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) == 1:
                 timeid=list(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']['变量名称'])[0]
                 if len(list(self.data_set[timeid].unique()))>30:

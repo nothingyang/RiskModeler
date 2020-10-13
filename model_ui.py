@@ -77,6 +77,8 @@ class model():
         self.target_oot = None
         self.target_train = None
         # 模型参数
+        self.par_intercept_weight='否'
+        self.par_var_weight=None
         self.par_use_freezing_flag = '否'
         self.par_inditor_help = False
         self.par_import_modelname = None
@@ -354,9 +356,10 @@ class model():
         self.comboxlist_variable_type["value"] = ['WOE', 'GRP', 'GRP_ind']
         if self.par_variable_type == 'WOE':
             self.comboxlist_variable_type.current(0)
-        else:
+        elif self.par_variable_type == 'GRP':
             self.comboxlist_variable_type.current(1)
-
+        else:
+            self.comboxlist_variable_type.current(2)
         self.comboxlist_variable_type.grid(column=1, row=2, sticky=(W))
 
         L4 = Label(self.start_window_data, width=25, text="变量设置:", justify="left")
@@ -447,46 +450,56 @@ class model():
             self.comboxlist_model_intercept.current(1)
         self.comboxlist_model_intercept.grid(column=1, row=10, sticky=(W))
 
+        L11_H = Label(self.start_window_LR_setting, width=25, text="模型训练使用权重:", justify="left")
+        L11_H.grid(column=0, row=11, sticky=(W))
+        self.comboxlist_model_weight = ttk.Combobox(self.start_window_LR_setting, width=15)
+        self.comboxlist_model_weight["value"] = ['是', '否']
+        if self.par_intercept_weight == True:
+            self.comboxlist_model_weight.current(0)
+        else:
+            self.comboxlist_model_weight.current(1)
+        self.comboxlist_model_weight.grid(column=1, row=11, sticky=(W))
+
         L12 = Label(self.start_window_LR_setting, width=25, text="模型训练是否使用辅助变量:", justify="left")
-        L12.grid(column=0, row=11, sticky=(W))
+        L12.grid(column=0, row=13, sticky=(W))
         self.comboxlist_inditor_help = ttk.Combobox(self.start_window_LR_setting, width=15)
         self.comboxlist_inditor_help["value"] = ['是', '否']
         if self.par_inditor_help == True:
             self.comboxlist_inditor_help.current(0)
         else:
             self.comboxlist_inditor_help.current(1)
-        self.comboxlist_inditor_help.grid(column=1, row=11, sticky=(W))
+        self.comboxlist_inditor_help.grid(column=1, row=13, sticky=(W))
         self.par_inditor_pct = 0.01
         self.par_inditor_sample = 0.01
         L10_12 = Label(self.start_window_LR_setting, width=20, text="辅助变量最小坏账率偏移:", justify="left")
-        L10_12.grid(column=0, row=12, sticky=(W))
+        L10_12.grid(column=0, row=14, sticky=(W))
         par_inditor_pct = tk.StringVar(value=self.par_inditor_pct)
         self.entry_par_inditor_pct = Entry(self.start_window_LR_setting, textvariable=par_inditor_pct, bd=1, width=18)
-        self.entry_par_inditor_pct.grid(column=1, row=12, sticky=(W))
+        self.entry_par_inditor_pct.grid(column=1, row=14, sticky=(W))
 
         L10_13 = Label(self.start_window_LR_setting, width=20, text="辅助变量最小样本占比:", justify="left")
-        L10_13.grid(column=0, row=13, sticky=(W))
+        L10_13.grid(column=0, row=15, sticky=(W))
         par_inditor_sample = tk.StringVar(value=self.par_inditor_sample)
         self.entry_par_inditor_sample = Entry(self.start_window_LR_setting, textvariable=par_inditor_sample, bd=1,
                                               width=18)
-        self.entry_par_inditor_sample.grid(column=1, row=13, sticky=(W))
+        self.entry_par_inditor_sample.grid(column=1, row=15, sticky=(W))
 
         L13 = Label(self.start_window_LR_setting, width=20, text="模型训练并行数:", justify="left")
-        L13.grid(column=0, row=14, sticky=(W))
+        L13.grid(column=0, row=16, sticky=(W))
         self.comboxlist_n_job = ttk.Combobox(self.start_window_LR_setting, width=15)
         self.comboxlist_n_job["value"] = [x for x in range(1, max(self.n_job + 1, joblib.cpu_count() - 1))]
         self.comboxlist_n_job.current(self.n_job - 1)
-        self.comboxlist_n_job.grid(column=1, row=14, sticky=(W))
+        self.comboxlist_n_job.grid(column=1, row=16, sticky=(W))
 
         L14 = Label(self.start_window_LR_setting, width=20, text="LASSO变量选择:", justify="left")
-        L14.grid(column=0, row=15, sticky=(W))
+        L14.grid(column=0, row=16, sticky=(W))
         self.comboxlist_lasso_flag = ttk.Combobox(self.start_window_LR_setting, width=15)
         self.comboxlist_lasso_flag["value"] = ['是', '否']
         if self.lasso_flag == '否':
             self.comboxlist_lasso_flag.current(1)
         else:
             self.comboxlist_lasso_flag.current(0)
-        self.comboxlist_lasso_flag.grid(column=1, row=15, sticky=(W))
+        self.comboxlist_lasso_flag.grid(column=1, row=16, sticky=(W))
 
         self.start_window_LR_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
         # 评分卡设置
@@ -708,6 +721,7 @@ class model():
     def get_par(self):
         self.par_use_freezing_flag = self.comboxlist_freezing_code.get()
         self.par_import_modelname = None
+        self.par_intercept_weight=self.comboxlist_model_weight.get() == '是'
         self.par_intercept_flag = self.comboxlist_model_intercept.get() == '是'
         self.par_p_value = float(self.entry_pvalue.get())
         self.par_stay_p_value = float(self.entry_s_pvalue.get())
@@ -795,7 +809,7 @@ class model():
             try:
                 self.comboxlist_modify_f_group = ttk.Combobox(self.data_variable_set_ui)
 
-                self.comboxlist_modify_f_group["value"] = ['使用', '不使用']
+                self.comboxlist_modify_f_group["value"] = ['使用', '不使用','权重变量']
 
                 self.comboxlist_modify_f_group.place(x=event.x_root - self.data_variable_set_ui.winfo_rootx(),
                                                      y=event.y_root - self.data_variable_set_ui.winfo_rooty())
@@ -821,9 +835,16 @@ class model():
         self.table = self.ptm = Table(f, dataframe=self.IGN_IGNvariable_setting, colspan=7,
                                       height=screen_height, width=screen_width)
         self.ptm.show()
+
+        def oneclike(event):
+            try:
+                self.comboxlist_modify_f_group.destroy()
+            except:
+                pass
+            self.table.handle_left_click(event)
         self.table.bind("<Button-3>", self.modify_variable_role)
         self.table.bind("<Button-2>", self.modify_variable_role)
-
+        self.table.bind("<Button-1>", oneclike)
         self.table.bind("<Double-Button-3>", self.modify_variable_role)
         self.table.bind("<Double-Button-1>", self.modify_variable_role)
         self.table.bind("<Double-Button-2>", self.modify_variable_role)
@@ -833,7 +854,7 @@ class model():
 
     def variable_role_update(self, event):
         variable = self.IGN_IGNvariable_setting.iloc[self.rowclicked]['变量名称']
-        if variable in self.IGN_not_use:
+        if (variable in self.IGN_not_use) and (self.comboxlist_modify_f_group.get()!='权重变量'):
             self.comboxlist_modify_f_group.destroy()
             tk.messagebox.showwarning('错误', "%s 已经再前一个模块被禁用" % variable)
         else:
@@ -930,13 +951,23 @@ class model():
                                                                 (self.IGN_IGNvariable_setting['变量类型'] == '数值型')][
                                        '变量名称'])
                 self.vari_list = self.varchar + self.varnum
+
                 try:
                     if self.temp.state() == 'normal':
                         tk.messagebox.showwarning('错误', "请先处理当前打开窗口")
                 except:
                     error_num = self.check_all_setting()
+                    if self.par_intercept_weight == True:
+                        wei=list(self.IGN_IGNvariable_setting[(self.IGN_IGNvariable_setting['是否使用'] == '权重变量')]['变量名称'])
+                        if len(wei)>1:
+                            tk.messagebox.showwarning('错误', "只能有一个权重变量")
+                            error_num=error_num+1
+                        else:
+                            try:
+                                self.par_var_weight=wei[0]
+                            except:
+                                pass
                     if error_num == 0:
-
                         if (self.par_variable_type == 'WOE') and (
                                 (self.par_use_freezing_flag == '否') | (self.model_ppp == [])):
                             self.model_ppp = lrmodel.woe_logistic_regression(mianframe=self.start_window_base,
@@ -952,7 +983,8 @@ class model():
                                                                              response=self.target_train,
                                                                              direction=self.par_direction,
                                                                              show_step=True, apply_restrict=True,
-                                                                             n_job=self.n_job)
+                                                                             n_job=self.n_job,weight_flag=self.par_intercept_weight,
+                                                                             weight_var=self.par_var_weight)
                         elif (self.par_variable_type == 'GRP') and (
                                 (self.par_use_freezing_flag == '否') | (self.model_ppp == [])):
                             self.model_ppp = lrmodel.grp_logistic_regression(mianframe=self.start_window_base,
@@ -965,7 +997,8 @@ class model():
                                                                              response=self.target_train,
                                                                              direction=self.par_direction,
                                                                              show_step=True, apply_restrict=True,
-                                                                             n_job=self.n_job)
+                                                                             n_job=self.n_job,weight_flag=self.par_intercept_weight,
+                                                                             weight_var=self.par_var_weight)
                         elif (self.par_variable_type == 'GRP_ind') and (
                                 (self.par_use_freezing_flag == '否') | (self.model_ppp == [])):
                             self.model_ppp = lrmodel.grp_ind_logistic_regression(mianframe=self.start_window_base,
@@ -978,10 +1011,10 @@ class model():
                                                                                  response=self.target_train,
                                                                                  direction=self.par_direction,
                                                                                  show_step=True, apply_restrict=True,
-                                                                                 n_job=self.n_job)
+                                                                                 n_job=self.n_job,weight_flag=self.par_intercept_weight,
+                                                                             weight_var=self.par_var_weight)
                         else:
                             if self.par_variable_type == 'WOE':
-
                                 woe_model_re = self.model_ppp[1]
                                 cof = pd.DataFrame(woe_model_re.params).reset_index().rename(
                                     {'index': 'woe_variable_name', 0: 'coff'}, axis=1)
@@ -1042,7 +1075,8 @@ class model():
                                                                                        show_step=True,
                                                                                        apply_restrict=False,
                                                                                        flag_IGN=False,
-                                                                                       n_job=self.n_job)
+                                                                                       n_job=self.n_job,weight_flag=self.par_intercept_weight,
+                                                                                       weight_var=self.par_var_weight)
                                     modelvar_match_df = pd.DataFrame()
                                     woe_varlist = ['woe_' + x for x in self.varnum + self.varchar]
                                     modelvar_match_df['ori_var'] = self.varnum + self.varchar
@@ -1084,7 +1118,8 @@ class model():
                                             response=self.target_train,
                                             direction=self.par_direction,
                                             show_step=True, apply_restrict=False,
-                                            n_job=1)
+                                            n_job=1,weight_flag=self.par_intercept_weight,
+                                                                             weight_var=self.par_var_weight)
                                     else:
                                         self.model_ppp = lrmodel.grp_ind_logistic_regression(
                                             mianframe=self.start_window_base,
@@ -1098,7 +1133,8 @@ class model():
                                             direction=self.par_direction,
                                             show_step=True,
                                             apply_restrict=False,
-                                            n_job=1)
+                                            n_job=1,weight_flag=self.par_intercept_weight,
+                                                                             weight_var=self.par_var_weight)
                                 else:
                                     tk.messagebox.showwarning('错误', "训练集中没有如下变量%" % (
                                         list(set(ori_var) - set(self.IGN_grouped_train_data.columns))))

@@ -33,7 +33,7 @@ class group_func():
                 loca = int((i / s_bin_num) * num)
                 value = sort_df.iloc[loca].values[0]
                 old_list.add(value)
-            old_list=old_list-set([max(old_list)])
+            # old_list=old_list-set([max(old_list)])
             old_list.add(float('-inf'))
             old_list.add(float('inf'))
         new_list = list(old_list)
