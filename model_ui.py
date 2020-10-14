@@ -641,10 +641,8 @@ class model():
         self.record_list_modify.append(self.model_modify.summary2())
         self.modify_model_ui.destroy()
         self.modify_model_ui = Toplevel(self.master)
-
         def close(event):
             self.modify_model_ui.destroy()
-
         def model_save(event):
             self.modify_model_ui.destroy()
             error2_f = Toplevel(self.master)
@@ -854,7 +852,7 @@ class model():
 
     def variable_role_update(self, event):
         variable = self.IGN_IGNvariable_setting.iloc[self.rowclicked]['变量名称']
-        if (variable in self.IGN_not_use) and (self.comboxlist_modify_f_group.get()!='权重变量'):
+        if (variable in self.IGN_not_use) and (self.comboxlist_modify_f_group.get()!='权重变量') and (self.comboxlist_modify_f_group.get()!='不使用') :
             self.comboxlist_modify_f_group.destroy()
             tk.messagebox.showwarning('错误', "%s 已经再前一个模块被禁用" % variable)
         else:
@@ -868,7 +866,6 @@ class model():
         # try:
             error_num = self.check_all_setting()
             if (error_num == 0) & (self.model_start_flag == 'N'):
-
                 self.model_start_flag = 'Y'
                 self.target_train = \
                     list(self.IGN_par_traindatavariable_setting[self.IGN_par_traindatavariable_setting['变量角色'] == '目标'][
@@ -962,6 +959,16 @@ class model():
                         if len(wei)>1:
                             tk.messagebox.showwarning('错误', "只能有一个权重变量")
                             error_num=error_num+1
+                        elif len(wei)==1:
+                            if list(self.IGN_IGNvariable_setting[(self.IGN_IGNvariable_setting['变量名称'] == wei[0])]['变量类型'])[0] != '数值型':
+                                tk.messagebox.showwarning('错误', "权重变量只能为数值型")
+                                error_num = error_num + 1
+                            if len(self.IGN_grouped_train_data[self.IGN_grouped_train_data[wei[0]].isnull()])>0:
+                                tk.messagebox.showwarning('错误', "权重变量不能有空值")
+                                error_num = error_num + 1
+                            if len(self.IGN_grouped_train_data[self.IGN_grouped_train_data[wei[0]]<=0])>0:
+                                tk.messagebox.showwarning('错误', "权重变量不能为0 或者负数")
+                                error_num = error_num + 1
                         else:
                             try:
                                 self.par_var_weight=wei[0]
@@ -1138,69 +1145,69 @@ class model():
                                 else:
                                     tk.messagebox.showwarning('错误', "训练集中没有如下变量%" % (
                                         list(set(ori_var) - set(self.IGN_grouped_train_data.columns))))
-                self.f_scorecard = self.scorecard_data_pre(self.model_ppp)
-                if self.lasso_flag == '是':
-                    self.lasso_df = self.func_lasso_df(variable_list=self.vari_list, train_target=self.target_train,
-                                                       predict_train_data=self.predict_train_data,
-                                                       predict_vaild_data=self.predict_vaild_data,
-                                                       n_job=self.n_job)
-                else:
-                    self.lasso_df = pd.DataFrame()
-                self.var_clus = self.func_var_clus(variable_list=self.vari_list,
-                                                   predict_train_data=self.predict_train_data,
-                                                   scorecarddf=self.f_scorecard)
-                node_save_path = self.project_path + '/' + '%s.model' % self.node_name
-                nowTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                self.node_setting = {'node_type': 'SCR',
-                                     'node_name': self.node_name,
-                                     'node_save_path': node_save_path,
-                                     # 'ign_node': self.par_use_freezing_flag,
-                                     'par_use_freezing_flag': self.par_use_freezing_flag,
-                                     'par_inditor_help': self.par_inditor_help,
-                                     'par_import_modelname': self.par_import_modelname,
-                                     'par_intercept_flag': self.par_intercept_flag,
-                                     'par_p_value': self.par_p_value,
-                                     'par_stay_p_value': self.par_stay_p_value,
-                                     'par_criterion': self.par_criterion,
-                                     'par_direction': self.par_direction,
-                                     'par_variable_type': self.par_variable_type,
-                                     'par_odds_ratio': self.par_odds_ratio,
-                                     'par_odds_score_ratio': self.par_odds_score_ratio,
-                                     'par_odds_double_score': self.par_odds_double_score,
-                                     'par_intercept_scorecard': self.par_intercept_scorecard,
-                                     # 分组过程参数
-                                     # 评分卡变量
-                                     'predict_train_data': self.predict_train_data,
-                                     'predict_vaild_data': self.predict_vaild_data,
-                                     'predict_reject_data': self.predict_reject_data,
-                                     'predict_oot_data': self.predict_oot_data,
-                                     'model': self.model_ppp,
-                                     'scorecard_df': self.f_scorecard,
-                                     'lasso_df': self.lasso_df,
-                                     'lasso_flag': self.lasso_flag,
-                                     'time': nowTime,
-                                     'previous_node_name': [self.IGN_node_name],
-                                     'var_clus': self.var_clus,
-                                     'previous_node_time': [self.IGN_node_time],
-                                     'IGN_grouping_data': self.IGN_groupingdata,
-                                     'report_para': {'train_target': self.target_train,
-                                                     'oot_target': self.target_oot,
-                                                     'reject_target': self.target_reject,
-                                                     'timeid_train': self.timeid_train,
-                                                     'timeid_oot': self.timeid_oot,
-                                                     'timeid_reject': self.timeid_reject,
-                                                     'f_group_report': self.IGN_f_group_report,
-                                                     'vari_list': self.vari_list},
-                                     # 'data_variable_setting': self.par_traindatavariable_setting,
-                                     # 'reject_data_variable_setting': self.par_rejectdatavariable_setting,
-                                     # 'oot_data_variable_setting': self.par_ootdatavariable_setting,
-                                     'use_node': [self.node_name] + self.IGN_previous_usedlist
-                                     }
-                self.finsh = 'Y'
-                for child in self.master.winfo_children():
-                    child.destroy()
-                self.adjustsetting()
-                self.model_start_flag = 'N'
+                        self.f_scorecard = self.scorecard_data_pre(self.model_ppp)
+                        if self.lasso_flag == '是':
+                            self.lasso_df = self.func_lasso_df(variable_list=self.vari_list, train_target=self.target_train,
+                                                               predict_train_data=self.predict_train_data,
+                                                               predict_vaild_data=self.predict_vaild_data,
+                                                               n_job=self.n_job)
+                        else:
+                            self.lasso_df = pd.DataFrame()
+                        self.var_clus = self.func_var_clus(variable_list=self.vari_list,
+                                                           predict_train_data=self.predict_train_data,
+                                                           scorecarddf=self.f_scorecard)
+                        node_save_path = self.project_path + '/' + '%s.model' % self.node_name
+                        nowTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+                        self.node_setting = {'node_type': 'SCR',
+                                             'node_name': self.node_name,
+                                             'node_save_path': node_save_path,
+                                             # 'ign_node': self.par_use_freezing_flag,
+                                             'par_use_freezing_flag': self.par_use_freezing_flag,
+                                             'par_inditor_help': self.par_inditor_help,
+                                             'par_import_modelname': self.par_import_modelname,
+                                             'par_intercept_flag': self.par_intercept_flag,
+                                             'par_p_value': self.par_p_value,
+                                             'par_stay_p_value': self.par_stay_p_value,
+                                             'par_criterion': self.par_criterion,
+                                             'par_direction': self.par_direction,
+                                             'par_variable_type': self.par_variable_type,
+                                             'par_odds_ratio': self.par_odds_ratio,
+                                             'par_odds_score_ratio': self.par_odds_score_ratio,
+                                             'par_odds_double_score': self.par_odds_double_score,
+                                             'par_intercept_scorecard': self.par_intercept_scorecard,
+                                             # 分组过程参数
+                                             # 评分卡变量
+                                             'predict_train_data': self.predict_train_data,
+                                             'predict_vaild_data': self.predict_vaild_data,
+                                             'predict_reject_data': self.predict_reject_data,
+                                             'predict_oot_data': self.predict_oot_data,
+                                             'model': self.model_ppp,
+                                             'scorecard_df': self.f_scorecard,
+                                             'lasso_df': self.lasso_df,
+                                             'lasso_flag': self.lasso_flag,
+                                             'time': nowTime,
+                                             'previous_node_name': [self.IGN_node_name],
+                                             'var_clus': self.var_clus,
+                                             'previous_node_time': [self.IGN_node_time],
+                                             'IGN_grouping_data': self.IGN_groupingdata,
+                                             'report_para': {'train_target': self.target_train,
+                                                             'oot_target': self.target_oot,
+                                                             'reject_target': self.target_reject,
+                                                             'timeid_train': self.timeid_train,
+                                                             'timeid_oot': self.timeid_oot,
+                                                             'timeid_reject': self.timeid_reject,
+                                                             'f_group_report': self.IGN_f_group_report,
+                                                             'vari_list': self.vari_list},
+                                             # 'data_variable_setting': self.par_traindatavariable_setting,
+                                             # 'reject_data_variable_setting': self.par_rejectdatavariable_setting,
+                                             # 'oot_data_variable_setting': self.par_ootdatavariable_setting,
+                                             'use_node': [self.node_name] + self.IGN_previous_usedlist
+                                             }
+                        self.finsh = 'Y'
+                        for child in self.master.winfo_children():
+                            child.destroy()
+                        self.adjustsetting()
+                    self.model_start_flag = 'N'
         # except Exception as e:
         #     tk.messagebox.showwarning('错误', e)
         #     self.model_start_flag = 'N'
