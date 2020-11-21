@@ -61,7 +61,7 @@ class scorecard_result_ui():
                  predict_train_data,predict_vaild_data,predict_oot_data,predict_reject_data,
                  train_target,oot_target,reject_target,
                  train_time_id,oot_time_id,reject_time_id,
-                 record_list, model,scorecarddf,f_group_report,variable_list,lasso_df,model_var_type,var_clus
+                 record_list, model,scorecarddf,f_group_report,variable_list,lasso_df,model_var_type,var_clus,IGN_groupingdata,var_type
                 ):
         self.master=mainframe
         self.project_path =project_path
@@ -84,19 +84,21 @@ class scorecard_result_ui():
         self.model_var_type=model_var_type
         self.lasso_df=lasso_df
         self.var_clus=var_clus
+        self.IGN_groupingdata=IGN_groupingdata
+        self.var_type=var_type
         self.plot_tab(
                  predict_train_data=self.predict_train_data,predict_vaild_data=self.predict_vaild_data,
                  predict_oot_data=self.predict_oot_data,predict_reject_data=self.predict_reject_data,
                  train_target=self.train_target,oot_target=self.oot_target,reject_target=self.reject_target,
                  train_time_id=self.train_time_id,oot_time_id=self.oot_time_id,reject_time_id=self.reject_time_id,
                  record_list=self.record_list, model=self.model,scorecarddf=self.scorecarddf,model_var_type=self.model_var_type,
-                 variable_list=self.variable_list,lasso_df=self.lasso_df,var_clus=self.var_clus)
+                 variable_list=self.variable_list,lasso_df=self.lasso_df,var_clus=self.var_clus,IGN_groupingdata=self.IGN_groupingdata,var_type=self.var_type)
 
     def plot_tab(self,
                  predict_train_data,predict_vaild_data,predict_oot_data,predict_reject_data,
                  train_target,oot_target,reject_target,
                  train_time_id,oot_time_id,reject_time_id,
-                 record_list, model,scorecarddf,variable_list,lasso_df,model_var_type,var_clus):
+                 record_list, model,scorecarddf,variable_list,lasso_df,model_var_type,var_clus,IGN_groupingdata,var_type):
         # root=self.master
         self.master.title('评分卡')#标题
         self.screenwidth = self.master.winfo_screenwidth()
@@ -109,24 +111,95 @@ class scorecard_result_ui():
 
         self.master.resizable(width = True, height = True)#窗口大小
 
-        def help1():
+        def closetab():
             try:
                 self.master.destroy()
             except:
                 pass
 
-        def help2():
+        def outputreport():
             # try:
             self.output_report()
             tkinter.messagebox.showinfo(title = '成功',message = '报告已成功道出到\n '+ self.project_path + '/' + '%s_model_report.xlsx' % self.node_name)
             # except Exception as e:
             #     tkinter.messagebox.showinfo(title='错误',message=e)
+        def outputsql():
+            def num_score_code(x):
+                print(type(x['value']))
+                if x['value'] == 'miss':
+                    return 'when %s is null then %s' % (x['variable_name'], x['scorecard'])
+                elif x['flag_null'] ==False:
+                    try:
+                        return 'when %s=%s then %s' % (x['variable_name'], float(x['value']), x['scorecard'])
+                    except:
+                        return "when %s='%s' then %s" % (x['variable_name'], x['value'], x['scorecard'])
+                elif x['f_min'] == -np.inf:
+                    return 'when %s<=%s then %s' % (x['variable_name'], x['f_max'], x['scorecard'])
+                elif x['f_max'] == np.inf:
+                    return 'when %s>%s then %s' % (x['variable_name'], x['f_min'], x['scorecard'])
+                else:
+                    return 'when %s>%s and  %s<=%s then %s' % (
+                    x['variable_name'], x['f_min'], x['variable_name'], x['f_max'], x['scorecard'])
+
+            def num_woe_code(x):
+                if x['value'] == 'miss':
+                    return 'when %s is null then %s' % (x['variable_name'], x['woe'])
+                elif x['flag_null'] == False:
+                    try:
+                        return 'when %s=%s then %s' % (x['variable_name'], float(x['value']), x['scorecard'])
+                    except:
+                        return "when %s='%s' then %s" % (x['variable_name'], x['value'], x['scorecard'])
+                elif x['f_min'] == -np.inf:
+                    return 'when %s<=%s then %s' % (x['variable_name'], x['f_max'], x['woe'])
+                elif x['f_max'] == np.inf:
+                    return 'when %s>%s then %s' % (x['variable_name'], x['f_min'], x['woe'])
+                else:
+                    return 'when %s>%s and  %s<=%s then %s' % (
+                    x['variable_name'], x['f_min'], x['variable_name'], x['f_max'], x['woe'])
+
+
+            try:
+                data = pd.merge(scorecarddf[['variable_name', 'f_group', 'coff', 'scorecard']], IGN_groupingdata, how='left',
+                                on=['variable_name', 'f_group'])[
+                    ['variable_name', 'f_group', 'coff', 'woe', 'f_max', 'f_min', 'scorecard', 'value']].drop_duplicates()
+                code_list = ''
+                data['flag_null']=data['value'].isnull()
+                for var in data['variable_name'].unique():
+                    var_data = data[data['variable_name'] == var]
+                    if var != 'const':
+                        var_data['code'] = var_data.apply(lambda x: num_score_code(x), axis=1)
+                        if var_type == 'WOE':
+                            var_data['woe_code'] = var_data.apply(lambda x: num_woe_code(x), axis=1)
+                        code_list = code_list + 'case'
+                        for value in var_data['code']:
+                            code_list = code_list + '\n'
+                            code_list = code_list + value + '\n'
+                        code_list = code_list + 'end as score_%s ,' % (var) + '\n'
+                        if var_type == 'WOE':
+                            var_data['woe_code'] = var_data.apply(lambda x: num_woe_code(x), axis=1)
+                            code_list = code_list + 'case'
+                            for value in var_data['woe_code']:
+                                code_list = code_list + '\n'
+                                code_list = code_list + value + '\n'
+                            code_list = code_list + 'end as woe_%s ,' % (var) + '\n'
+                    else:
+                        code_list = code_list + '%s as score_Intercept, \n' %(var_data['scorecard'][0])
+                        if var_type == 'WOE':
+                            code_list = code_list + '1 as woe_Intercept,\n'
+                fh=open(self.project_path + '/' + '%s_model_code.txt' % self.node_name,'w')
+                fh.write(code_list)
+                fh.close()
+                tkinter.messagebox.showinfo(title='成功',
+                                            message='代码已成功导出至\n ' + self.project_path + '/' + '%s_model_code.txt' % self.node_name)
+            except Exception as e:
+                tkinter.messagebox.showinfo(title='失败',message=e)
 
         menubar = Menu(self.master)
         filemenu = Menu(menubar, tearoff = 0)
         menubar.add_cascade(label = '菜单',menu = filemenu)
-        filemenu.add_command(label='关闭',command = help1)
-        filemenu.add_command(label='输出报告',command = help2)
+        filemenu.add_command(label='关闭',command = closetab)
+        filemenu.add_command(label='输出报告',command = outputreport)
+        filemenu.add_command(label='输出sql打分代码', command=outputsql)
 
 
         tabcontrol = ttk.Notebook(self.master)
