@@ -128,6 +128,8 @@ class model():
         self.par_inditor_help = node_data[0]['par_inditor_help']
         self.par_import_modelname = node_data[0]['par_import_modelname']
         self.par_intercept_flag = node_data[0]['par_intercept_flag']
+        self.par_intercept_flag=node_data[0]['par_intercept_flag']
+        self.par_intercept_weight=node_data[0]['par_weight_flag']
         self.par_p_value = node_data[0]['par_p_value']
         self.par_stay_p_value = node_data[0]['par_stay_p_value']
         self.par_criterion = node_data[0]['par_criterion']
@@ -973,7 +975,8 @@ class model():
                             try:
                                 self.par_var_weight=wei[0]
                             except:
-                                pass
+                                error_num = error_num + 1
+                                tk.messagebox.showwarning('错误', "没有发现权重变量")
                     if error_num == 0:
                         if (self.par_variable_type == 'WOE') and (
                                 (self.par_use_freezing_flag == '否') | (self.model_ppp == [])):
@@ -1166,6 +1169,8 @@ class model():
                                              'par_inditor_help': self.par_inditor_help,
                                              'par_import_modelname': self.par_import_modelname,
                                              'par_intercept_flag': self.par_intercept_flag,
+                                             'par_weight_flag': self.par_intercept_weight,
+                                             'par_weight_var' : self.par_var_weight,
                                              'par_p_value': self.par_p_value,
                                              'par_stay_p_value': self.par_stay_p_value,
                                              'par_criterion': self.par_criterion,
@@ -1228,7 +1233,7 @@ class model():
                                 record_list=self.model_ppp[0], model=self.model_ppp[1], scorecarddf=self.f_scorecard,
                                 f_group_report=self.IGN_f_group_report
                                 , variable_list=self.vari_list, lasso_df=self.lasso_df,
-                                model_var_type=self.par_variable_type, var_clus=self.var_clus)
+                                model_var_type=self.par_variable_type, var_clus=self.var_clus,IGN_groupingdata=self.IGN_groupingdata,var_type=self.par_variable_type)
 
     def scorecard_data_pre(self, model_re):
         def score_predict(scorecard, df):
@@ -1619,7 +1624,7 @@ class model():
                             record_list=self.model_ppp[0], model=self.model_ppp[1], scorecarddf=self.f_scorecard,
                             f_group_report=self.IGN_f_group_report
                             , variable_list=self.vari_list, lasso_df=self.lasso_df,
-                            model_var_type=self.par_variable_type, var_clus=self.var_clus)
+                            model_var_type=self.par_variable_type, var_clus=self.var_clus,IGN_groupingdata=self.IGN_groupingdata,var_type=self.par_variable_type)
 
     def add_delet_var(self, record_list, input_model, model_variable_df, modify_var, flag, par_variable_type, var_list,
                       n_job, predict_train_data, target_train, predict_vaild_data, par_intercept_flag):
