@@ -1,9 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import *
-
 import pandas as pd
-
 import pickle as pickle
 import datetime
 import os

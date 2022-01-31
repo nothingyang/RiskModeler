@@ -13,7 +13,7 @@ import datetime
 
 binning = binning()
 import statsmodels.api as sm
-from sklearn.linear_model.logistic import LogisticRegression
+from sklearn.linear_model import LogisticRegression
 from joblib import Parallel, delayed
 import joblib
 from .model_result_ui import scorecard_result_ui

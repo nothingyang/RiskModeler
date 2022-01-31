@@ -160,6 +160,72 @@ class group_func():
             {'level_0': 'f_group'}, axis=1)
         return rough_group
 
+    def numericvar_apior(self, inputdata, col, s_bin_num, target, specialcode_list):
+
+        s_group_map = self.num_finebin_group(inputdata=inputdata, col=col, s_bin_num=s_bin_num,
+                                             specialcode_list=specialcode_list)
+        s_group_data = self.binning(group_data=s_group_map, inputdata=inputdata, col=col, inputmax='s_max',
+                                    inputmin='s_min', inputgroup='s_group', specialcode_list=specialcode_list)
+
+        s_group_data['value'] = np.nan
+
+        group_info_base = s_group_map
+        group_info_base['miss_s'] = False
+
+        group_info_base['value'] = np.nan
+        if len(inputdata[inputdata[col].isnull()]) > 0:
+            miss_data = inputdata[inputdata[col].isnull()]
+            miss_data.loc[:, 's_group'] = -1
+
+            miss_data['value'] = 'miss'
+            tempg = pd.DataFrame({'s_group': -1, 'value': 'miss', 'miss_s': True},
+                                 index=[0])
+            s_group_data = s_group_data.append(miss_data)
+            group_info_base = group_info_base.append(tempg)
+        if specialcode_list != []:
+            i = -2
+            for special_value in specialcode_list:
+                temp = inputdata[inputdata[col] == special_value].copy()
+                temp['s_group'] = i
+
+                temp['value'] = special_value
+                temps = pd.DataFrame(
+                    {'s_group': i, 'value': special_value, 'miss_s': True}, index=[0])
+                s_group_data = s_group_data.append(temp)
+                group_info_base = group_info_base.append(temps)
+                i = i - 1
+
+        s_group_data['miss'] = s_group_data['s_group'] < 0
+
+        tt = s_group_data.groupby(['s_group']).agg(
+            {target: ['mean', 'count', 'sum'], 'miss': 'max', 's_max': 'max', 's_min': 'min',
+             'value': 'max'}).reset_index()
+
+
+        s_data = pd.DataFrame()
+        s_data['s_group'] = tt['s_group']
+
+        s_data['s_Bad_rate'] = tt[target]['mean']
+        s_data['s_N_obs'] = tt[target]['count']
+        s_data['s_N_bad'] = tt[target]['sum']
+
+        s_data['variable_name'] = '%s' % col
+
+
+
+
+        dd = inputdata[col].describe()
+        ds = pd.DataFrame(dd).T.reset_index().rename({'index': 'variable_name'}, axis=1)
+        ds['miss_count'] = inputdata[col].isnull().sum()
+
+        group_info = pd.merge(group_info_base, s_data, how='left', on=['s_group'])
+        group_info = pd.merge(group_info, ds, how='left', on=['variable_name'])
+
+        outputdata = pd.merge(s_group_data[[col, 's_group']], s_data[['s_group']], how='left', on=['s_group'])
+
+        outputdata['s_group_%s' % col] = outputdata['s_group']
+        return group_info, outputdata.drop(columns=[ 's_group'])
+
     def numericvar(self, inputdata, col, s_bin_num, target, criterion, splitter, max_depth, min_samples_leaf,
                    max_leaf_nodes, specialcode_list):
 

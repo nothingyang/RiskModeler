@@ -280,7 +280,6 @@ class sample():
     def load_data(self, event, datatype):
         # 读取数据
         try:
-
             if (datatype == 'train') & (len(self.comboxlist_train_data.get()) >= 1):
                 path = self.project_info[self.project_info['模块名字'] == self.comboxlist_train_data.get()]['保存地址'][0]
                 fr = open(path, 'rb')
@@ -303,16 +302,13 @@ class sample():
                     self.ui_start()
                 else:
                     self.target = 'Y'
-                    self.get_par()
                     for child in self.master.winfo_children():
                         child.destroy()
                     self.ui_start()
+                    self.get_par()
             elif len(self.comboxlist_train_data.get()) <= 1:
-
                 self.par_train_data = pd.DataFrame()
-
             else:
-
                 pass
         except Exception as e:
             self.par_train_data = pd.DataFrame()
@@ -621,7 +617,6 @@ class sample():
         self.train_pct = float(self.entry_train_pct.get())
         self.seed = int(self.entry_seed.get())
         self.replace = self.comboxlist_replace.get()
-
         self.par_train_data = self.par_train_data
         self.method = self.comboxlist_method.get()
         try:

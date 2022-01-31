@@ -9,6 +9,7 @@ from .inputdata import inputdata
 from .split import spliting
 from .sampling import sample
 from .interactive_grouping import IGN
+from .policy import PLC
 from .model_ui import model
 from .score_ui import  scoreing
 from .load_node import import_node
@@ -141,6 +142,7 @@ class scorecard():
         sysmenu_IGN = Menu(menubar, tearoff=False)
         sysmenu_model = Menu(menubar, tearoff=False)
         sysmenu_load_node = Menu(menubar, tearoff=False)
+        sysmenu_policy= Menu(menubar, tearoff=False)
 
         menubar.add_cascade(label='保存/刷新', menu=sysmenu_save)
         sysmenu_save.add_command(label='保存项目', command=lambda: self.save_project())
@@ -151,6 +153,9 @@ class scorecard():
 
         menubar.add_cascade(label='导入数据集', menu=sysmenu_inputdata)
         sysmenu_inputdata.add_command(label='添加', command=lambda: self.func_menu('importdata'))
+
+        menubar.add_cascade(label='规则集', menu=sysmenu_policy)
+        sysmenu_policy.add_command(label='添加', command=lambda: self.func_menu('policy'))
 
         menubar.add_cascade(label='数据集处理', menu=sysmenu_data_deal)
         sysmenu_data_deal.add_command(label='分区', command=lambda: self.func_menu('split'))
@@ -217,6 +222,11 @@ class scorecard():
             elif func == 'load_node':
                 new_node = import_node(self.root2, self.project_detail)
                 tip = '导入模块'
+            elif func =='policy':
+                new_node = PLC(self.root2, self.project_detail)
+                new_node.Start_UI()
+                new_node.adjustsetting()
+                tip = '规则集生成'
             self.root.wait_window(self.root2)
 
             if new_node.save != 'Y':
@@ -330,6 +340,9 @@ class scorecard():
                 elif node_type == 'IGN':
                     new_node = IGN(self.root2, self.project_detail)
                     new_node.load_node(node_info,ac='setting')
+                elif node_type == 'PLC':
+                    new_node = PLC(self.root2, self.project_detail)
+                    new_node.load_node(node_info,ac='setting')
                 elif node_type == 'SCR':
                     new_node = model(self.root2, self.project_detail)
                     new_node.import_node( node_info,ac='setting')
@@ -389,6 +402,10 @@ class scorecard():
                     new_node = IGN(self.root2, self.project_detail)
                     new_node.load_node(node_info, ac='result')
                     new_node.result()
+                elif node_type == 'PLC':
+                    new_node = PLC(self.root2, self.project_detail)
+                    new_node.load_node(node_info,ac='setting')
+
                 elif node_type=='SCR':
                     new_node = model(self.root2, self.project_detail)
                     new_node.import_node(node_info,ac='result')

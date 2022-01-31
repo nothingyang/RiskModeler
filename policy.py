@@ -11,15 +11,17 @@ import datetime
 from tkinter import filedialog
 import os
 binning = binning()
-
-class IGN():
+import plotly.graph_objects as go
+import plotly.io as pio
+import numpy as np
+class PLC():
     def __init__(self, mianframe, project_info):
         self.master = mianframe
         # project参数
         self.save = 'N'
         self.project_info = project_info
         self.project_path = os.path.split(project_info[project_info['模块类型'] == 'project']['保存地址'][0])[0]
-        self.node_name='IGN'
+        self.node_name='policy'
         self.exist_data = list(project_info['模块名字'])
         self.load='N'
         self.finsh='N'
@@ -50,7 +52,7 @@ class IGN():
         # 分组参数
         self.par_use_freezing_flag = '否'
         self.par_import_groupdataname=None
-        self.par_num_s_bin = 20
+
         self.par_use_specialcode_flag = '否'
         self.par_specialcode_data = pd.DataFrame()
         self.par_sepcialcode_dataname = None
@@ -63,7 +65,11 @@ class IGN():
         self.par_min_pct_group = 0.01
         self.par_variable_reject_flag = 'no'
         self.par_variable_reject_iv = 0.05
-
+        # policy 参数
+        self.par_min_lift = 1.4
+        self.par_min_badnum = 5
+        self.par_min_badrate = 0.1
+        self.par_num_s_bin = 20
         # 分组过程参数
         self.IGNvariable_setting = pd.DataFrame()
         self.target_train = None
@@ -233,10 +239,6 @@ class IGN():
                 node_name = node_info[0]['node_name']
                 if data_role == 'Training model':
                     self.train_data_list.append(node_name)
-                elif data_role == 'Reject':
-                    self.reject_data_list.append(node_name)
-                elif data_role == 'out of time sample':
-                    self.oot_data_list.append(node_name)
                 else:
                     pass
             except Exception as e:
@@ -249,7 +251,7 @@ class IGN():
         screenheight = self.master.winfo_screenheight()
         self.start_window_base.geometry(
             '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        self.start_window_base.title('交互式分组参数设置')
+        self.start_window_base.title('规则集参数设置')
         print(height,width)
     def adjustsetting(self):
         # 导入数据
@@ -278,58 +280,7 @@ class IGN():
         self.comboxlist_train_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='train'))
         self.comboxlist_train_data.grid(column=1, row=0, sticky=(W))
 
-        L2 = Label(self.start_window_data, width=20, text="OOT样本:")
-        L2.grid(column=0, row=1, sticky=(W))
-        self.comboxlist_oot_data = ttk.Combobox(self.start_window_data, width=15)
-        self.comboxlist_oot_data["value"] = self.oot_data_list
-        if self.par_oot_data.empty != True:
-            for i in range(len(self.oot_data_list)):
-                if self.oot_data_list[i] == self.par_oot_dataname:
-                    self.comboxlist_oot_data.current(i)
-        self.comboxlist_oot_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='oot'))
-        self.comboxlist_oot_data.grid(column=1, row=1, sticky=(W))
-
-        L3 = Label(self.start_window_data, width=20, text="拒绝样本:")
-        L3.grid(column=0, row=2, sticky=(W))
-        self.comboxlist_reject_data = ttk.Combobox(self.start_window_data, width=15)
-        self.comboxlist_reject_data["value"] = self.reject_data_list
-        if self.par_reject_data.empty != True:
-            for i in range(len(self.reject_data_list)):
-                if self.reject_data_list[i] == self.par_reject_dataname:
-                    self.comboxlist_reject_data.current(i)
-        self.comboxlist_reject_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='reject'))
-        self.comboxlist_reject_data.grid(column=1, row=2, sticky=(W))
         self.start_window_data.grid(columnspan=3, sticky=(W), padx=10, pady=10)
-
-        # 预定义分组
-
-        self.start_window_group_setting = LabelFrame(self.start_window_base, text='预定义分组:')
-
-        L4 = Label(self.start_window_group_setting, width=20, text="变量设置:")
-        L4.grid(column=0, row=3, sticky=(W))
-        self.button_data_variablesetting = ttk.Button(self.start_window_group_setting, text='设置:')
-        self.button_data_variablesetting.grid(column=1, row=3, sticky=(W))
-        self.button_data_variablesetting.bind("<Button-1>", self.show_variabledetail)
-
-        L8 = Label(self.start_window_group_setting, width=20, text="使用冻结分组:")
-        L8.grid(column=0, row=5, sticky=(W))
-        self.comboxlist_freezing_code = ttk.Combobox(self.start_window_group_setting, width=15)
-        self.comboxlist_freezing_code["value"] = ['是', '否']
-        if self.par_use_freezing_flag == '否':
-            self.comboxlist_freezing_code.current(1)
-        else:
-            self.comboxlist_freezing_code.current(0)
-        self.comboxlist_freezing_code.grid(column=1, row=5, sticky=(W))
-
-        L5 = Label(self.start_window_group_setting, width=20, text="导入分组数据:")
-        L5.grid(column=0, row=6, sticky=(W))
-
-        L55 = Label(self.start_window_group_setting, width=20, text=self.par_import_groupdataname)
-        L55.grid(column=1, row=6, sticky=(W))
-        self.button_data_grouping_data_import = ttk.Button(self.start_window_group_setting, text='导入:')
-        self.button_data_grouping_data_import.grid(column=1, row=7, sticky=(W))
-        self.button_data_grouping_data_import.bind("<Button-1>", self.loading_grouping_data)
-        self.start_window_group_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
 
         # 数值变量设置
 
@@ -400,70 +351,35 @@ class IGN():
         self.start_window_char_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
 
         # 粗分箱参数设置
-        self.start_window_tree_setting = LabelFrame(self.start_window_base, text='粗分箱设置:')
-        L9 = Label(self.start_window_tree_setting, width=20, text="分裂准则:")
-        L9.grid(column=0, row=9, sticky=(W))
-        self.comboxlist_tree_split_list = ttk.Combobox(self.start_window_tree_setting, width=15)
-        self.comboxlist_tree_split_list["value"] = ['gini', 'entropy']
-        if self.par_tree_criterion=='gini':
-            self.comboxlist_tree_split_list.current(0)
-        else:
-            self.comboxlist_tree_split_list.current(1)
-        self.comboxlist_tree_split_list.grid(column=1, row=9, sticky=(W))
-
-        L10 = Label(self.start_window_tree_setting, width=20, text="最大粗分组数(整数):")
+        self.start_window_tree_setting = LabelFrame(self.start_window_base, text='规则集参数设置:')
+        L10 = Label(self.start_window_tree_setting, width=20, text="规则最小样本数:")
         L10.grid(column=0, row=10, sticky=(W))
-        f_num_bin = tk.StringVar(value=self.par_num_f_group)
-        self.entry_f_bin_num = Entry(self.start_window_tree_setting, textvariable=f_num_bin, width=18, bd=1)
-        self.entry_f_bin_num.grid(column=1, row=10, sticky=(W))
-        self.entry_f_bin_num.bind('<Return>', lambda event: self.int_num_check(event, 'entry_f_bin_num', 'int'))
+        f_num_bin = tk.StringVar(value=self.par_min_badnum)
+        self.entry_min_badnum = Entry(self.start_window_tree_setting, textvariable=f_num_bin, width=18, bd=1)
+        self.entry_min_badnum.grid(column=1, row=10, sticky=(W))
+        self.entry_min_badnum.bind('<Return>', lambda event: self.int_num_check(event, 'entry_min_badnum', 'int'))
 
-        L11 = Label(self.start_window_tree_setting, width=20, text="每组最小样本数(整数):")
+        L11 = Label(self.start_window_tree_setting, width=20, text="规则最小提升率:")
         L11.grid(column=0, row=11, sticky=(W))
-        f_num_sample_bin = tk.StringVar(value=self.par_min_num_group)
-        self.entry_min_num_sample = Entry(self.start_window_tree_setting, textvariable=f_num_sample_bin, width=18, bd=1)
-        self.entry_min_num_sample.grid(column=1, row=11, sticky=(W))
-        self.entry_min_num_sample.bind('<Return>',
-                                       lambda event: self.int_num_check(event, 'entry_min_num_sample', 'int'))
+        f_num_sample_bin = tk.StringVar(value=self.par_min_lift)
+        self.entry_min_lift = Entry(self.start_window_tree_setting, textvariable=f_num_sample_bin, width=18, bd=1)
+        self.entry_min_lift.grid(column=1, row=11, sticky=(W))
+        self.entry_min_lift.bind('<Return>',
+                                       lambda event: self.int_num_check(event, 'entry_min_lift', 'num'))
 
-        L12 = Label(self.start_window_tree_setting, width=20, text="每组样本数最小占比(0-1):")
+        L12 = Label(self.start_window_tree_setting, width=20, text="规则最小坏账率:")
         L12.grid(column=0, row=12, sticky=(W))
-        f_pct_sample_bin = tk.StringVar(value=self.par_min_pct_group)
-        self.entry_min_pct_sample = Entry(self.start_window_tree_setting, textvariable=f_pct_sample_bin, width=18, bd=1)
-        self.entry_min_pct_sample.grid(column=1, row=12, sticky=(W))
-        self.entry_min_pct_sample.bind('<Return>',
-                                       lambda event: self.int_num_check(event, 'entry_min_pct_sample', 'pct'))
-        if self.master.winfo_screenheight() <1000:
-            self.start_window_tree_setting.grid(column=5, row=1,columnspan=3, sticky=(W), padx=10, pady=10)
-        else:
-            self.start_window_tree_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        f_pct_sample_bin = tk.StringVar(value=self.par_min_badrate)
+        self.entry_min_badrate = Entry(self.start_window_tree_setting, textvariable=f_pct_sample_bin, width=18, bd=1)
+        self.entry_min_badrate.grid(column=1, row=12, sticky=(W))
+        self.entry_min_badrate.bind('<Return>',
+                                       lambda event: self.int_num_check(event, 'entry_min_badrate', 'pct'))
 
-        # 变量拒绝设置
-        self.start_window_variable_reject_setting = LabelFrame(self.start_window_base, text='变量拒绝设置:')
-        L9 = Label(self.start_window_variable_reject_setting, width=20, text="变量拒绝准则:")
-        L9.grid(column=0, row=13, sticky=(W))
-        self.comboxlist_variable_reject_rule = ttk.Combobox(self.start_window_variable_reject_setting, width=15)
-        self.comboxlist_variable_reject_rule["value"] = [ 'iv', 'no']
-        if self.par_variable_reject_flag=='iv':
-            self.comboxlist_variable_reject_rule.current(0)
-        else:
-            self.comboxlist_variable_reject_rule.current(1)
-        self.comboxlist_variable_reject_rule.grid(column=1, row=13, sticky=(W))
+        self.start_window_tree_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
 
 
 
-        L12 = Label(self.start_window_variable_reject_setting, width=20, text="iv拒绝最小值(>0):")
-        L12.grid(column=0, row=15, sticky=(W))
 
-        iv_reject = tk.StringVar(value=self.par_variable_reject_iv)
-        self.iv_reject_min = Entry(self.start_window_variable_reject_setting, textvariable=iv_reject, width=18, bd=1)
-        self.iv_reject_min.grid(column=1, row=15, sticky=(W))
-        self.iv_reject_min.bind('<Return>', lambda event: self.int_num_check(event, 'iv_reject_min', 'iv'))
-
-        if self.master.winfo_screenheight() <1000:
-            self.start_window_variable_reject_setting.grid(column=5, row=2,columnspan=3, sticky=(W), padx=10, pady=10)
-        else:
-            self.start_window_variable_reject_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
         self.button_setting_save = ttk.Button(self.start_window_base, text='退出')
         self.button_setting_save.grid(column=0, row=7, sticky=(W), padx=10, pady=10)
         self.button_setting_save.bind("<Button-1>", self.save_project)
@@ -494,7 +410,7 @@ class IGN():
             '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
 
         def selectExcelfile():
-            sfname = filedialog.askopenfilename(title='选择IGN文件', filetypes=[('IGN', '*.IGN')])
+            sfname = filedialog.askopenfilename(title='选择IGN文件', filetypes=[('PLC', '*.PLC')])
             self.E111.delete(0, 'end')
             self.E111.insert(INSERT, sfname)
         L1 = Label(self.Group_ui, text="数据集路径（IGN)")
@@ -529,6 +445,11 @@ class IGN():
         self.import_node=node_data
         self.load='Y'
         self.node_setting=node_data[0]
+
+        self.par_min_lift=node_data[0]['par_min_lift' ]
+        self.par_min_badnum=node_data[0]['par_min_badnum' ]
+        self.par_min_badrate=node_data[0]['par_min_badrate' ]
+        self.par_num_s_bin=node_data[0]['par_num_s_bin' ]
         self.node_name = node_data[0]['node_name']
         self.par_train_dataname=node_data[0]['previous_node_name'][0]
         self.par_reject_dataname= node_data[0]['previous_node_name'][1]
@@ -553,11 +474,12 @@ class IGN():
         self.f_group_report=node_data[1][1]
         self.s_group_report=node_data[1][2]
         self.not_use=node_data[1][3]
+        self.final_rule =node_data[1][4]
         self.grouped_train_data=node_data[2]
         self.grouped_valid_data=node_data[3]
         self.grouped_reject_data=node_data[4]
         self.grouped_oot_data=node_data[5]
-
+        self.aprior_data =node_data[6]
         self.par_traindatavariable_setting=node_data[0]['data_variable_setting']
         self.par_rejectdatavariable_setting=node_data[0]['reject_data_variable_setting']
         self.par_ootdatavariable_setting=node_data[0]['oot_data_variable_setting']
@@ -566,6 +488,8 @@ class IGN():
         self.par_train_dataname_time=node_data[0]['previous_node_time'][0]
         self.par_reject_dataname_time=node_data[0]['previous_node_time'][1]
         self.par_oot_dataname_time=node_data[0]['previous_node_time'][2]
+
+
         if ac == 'setting':
             error_list=[]
             for i in range(0,3):
@@ -740,6 +664,10 @@ class IGN():
     def check_all_setting(self, event):
         self.get_par()
         mm=0
+
+
+
+
         if (self.node_name in self.exist_data) & (self.load == 'N'):
             mm = mm + 1
             tk.messagebox.showwarning('错误', "该名称已经被占用，请更改")
@@ -747,22 +675,18 @@ class IGN():
             mm= mm + 1
             tk.messagebox.showwarning('错误', "错误：训练样本为空")
         else:
-            total = ['iv_reject_min',
-                     'entry_min_num_sample', 'entry_f_bin_num',
-                     'entry_min_num_char', 'entry_min_pct_char', 'entry_s_bin_num', 'entry_min_pct_sample']
-            if self.par_variable_reject_flag == 'no':
-                total.remove('iv_reject_min')
-
-            elif self.par_char_restric_flag == '不限制':
+            total = ['entry_min_badrate', 'entry_min_badnum', 'entry_min_lift',
+                     'entry_min_num_char', 'entry_min_pct_char', 'entry_s_bin_num']
+            if self.par_char_restric_flag == '不限制':
                 total.remove('entry_min_pct_char')
                 total.remove('entry_min_num_char')
             for p in total:
-                if p in ['entry_min_num_sample', 'entry_f_bin_num', 'entry_min_num_char', 'entry_s_bin_num']:
+                if p in ['entry_min_badnum', 'entry_min_num_char', 'entry_s_bin_num']:
                     flag = 'int'
                     entry_p = p
                     pp=self.int_num_check(event, entry_p, flag)
                     mm=mm+pp
-                elif p in [ 'entry_min_pct_char', 'entry_min_pct_sample']:
+                elif p in [ 'entry_min_pct_char', 'entry_min_badrate']:
                     flag = 'pct'
                     entry_p = p
                     pp=self.int_num_check(event, entry_p, flag)
@@ -774,12 +698,10 @@ class IGN():
                     mm = mm + pp
         return mm
     def get_par(self):
-        self.par_variable_reject_flag = self.comboxlist_variable_reject_rule.get()
-        self.par_variable_reject_iv = float(self.iv_reject_min.get())
-        self.par_tree_criterion = self.comboxlist_tree_split_list.get()
-        self.par_num_f_group = int(self.entry_f_bin_num.get())
-        self.par_min_num_group = int(self.entry_min_num_sample.get())
-        self.par_min_pct_group = float(self.entry_min_pct_sample.get())
+
+        self.par_min_lift = float(self.entry_min_lift.get())
+        self.par_min_badnum = int(self.entry_min_badnum.get())
+        self.par_min_badrate = float(self.entry_min_badrate.get())
 
         self.par_char_restric_flag = self.comboxlist_char_limitrule_list.get()
         self.par_char_restric_num = int(self.entry_min_num_char.get())
@@ -790,24 +712,22 @@ class IGN():
         self.par_specialcode_data = self.par_specialcode_data
         self.par_sepcialcode_dataname = self.par_sepcialcode_dataname
 
-        self.par_use_freezing_flag = self.comboxlist_freezing_code.get()
+
         self.par_import_groupdataname = self.par_import_groupdataname
         if (self.finsh=='N')&(self.load=='N'):
             self.node_name=self.entry_node_name.get()
     def int_num_check(self, event, entry_p, flag):
         a=0
-        if entry_p == 'iv_reject_min':
-            inputnum = self.iv_reject_min.get()
-            tip = 'iv拒绝最小值'
-        elif entry_p == 'entry_min_pct_sample':
-            inputnum = self.entry_min_pct_sample.get()
-            tip = '每组样本数最小占比'
-        elif entry_p == 'entry_min_num_sample':
-            inputnum = self.entry_min_num_sample.get()
-            tip = '每组最小样本数'
-        elif entry_p == 'entry_f_bin_num':
-            inputnum = self.entry_f_bin_num.get()
-            tip = '最大粗分组数'
+
+        if entry_p == 'entry_min_badrate':
+            inputnum = self.entry_min_badrate.get()
+            tip = '规则最小坏账率'
+        elif entry_p == 'entry_min_badnum':
+            inputnum = self.entry_min_badnum.get()
+            tip = '规则最小坏样本数'
+        elif entry_p == 'entry_min_lift':
+            inputnum = self.entry_min_lift.get()
+            tip = '规则最小提升率'
         elif entry_p == 'entry_min_num_char':
             inputnum = self.entry_min_num_char.get()
             tip = '字符型变量不分组最小样本数'
@@ -818,7 +738,7 @@ class IGN():
             inputnum = self.entry_s_bin_num.get()
             tip = '细分箱个数'
         else:
-            pass
+            tip = entry_p
 
         try:
             if float(inputnum) < 0:
@@ -1005,7 +925,7 @@ class IGN():
         self.IGNvariable_setting.iloc[self.rowclicked, self.colclicked] = value
         self.comboxlist_modify_f_group.destroy()
         self.refresh_datavariable_df()
-        # 分组
+    # 分组
     def interactive_grouping(self, event):
         # 检查各个数据集变量情况
         try:
@@ -1014,10 +934,15 @@ class IGN():
         except:
             error_num=self.check_all_setting(event)
             if error_num==0:
-                node_save_path = self.project_path + '/' + '%s.IGN' % self.node_name
+                node_save_path = self.project_path + '/' + '%s.PLC' % self.node_name
                 nowTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                self.node_setting = {'node_type': 'IGN',
+                self.node_setting = {'node_type': 'PLC',
                                      'node_name': self.node_name,
+
+                                    'par_min_lift': self.par_min_lift ,
+                                    'par_min_badnum':self.par_min_badnum ,
+                                    'par_min_badrate': self.par_min_badrate ,
+                                    'par_num_s_bin': self.par_num_s_bin ,
 
                                      'node_save_path': node_save_path,
                                      'par_use_freezing_flag': self.par_use_freezing_flag,
@@ -1124,7 +1049,7 @@ class IGN():
                 screenwidth = self.master.winfo_screenwidth()
                 screenheight = self.master.winfo_screenheight()
                 error2.geometry('%dx%d+%d+%d' % (150, 100, (screenwidth - 150) / 2, (screenheight - 100) / 2))
-                L2 = Label(error2, text="分组中。。。\n 请稍等一会会  \n不要重复提交")
+                L2 = Label(error2, text="运行中。。。\n 请稍等一会会  \n不要重复提交")
                 L2.grid()
                 self.master.update()
                 if (self.par_use_freezing_flag == '否') | (self.groupingdata.empty == True):
@@ -1151,22 +1076,86 @@ class IGN():
                     else:
                         min_num = len(self.par_train_data)
                         min_pct = self.par_char_restric_pct
-                    self.groupingdata, self.grouped_train_data = binning.fit_bin(data=self.par_train_data,
-                                                                                 varnum=self.varnum,
-                                                                                 varchar=self.varchar,
-                                                                                 target=self.target_train,
-                                                                                 s_bin_num=self.par_num_s_bin,
-                                                                                 min_num=min_num,
-                                                                                 min_pct=min_pct,
-                                                                                 special_code=special_code,
-                                                                                 criterion=self.par_tree_criterion,
-                                                                                 max_depth=20,
-                                                                                 min_samples_leaf=min(self.par_min_num_group,
-                                                                                                      int(len(self.par_train_data) * self.par_min_pct_group)),
-                                                                                 max_leaf_nodes=self.par_num_f_group,
-                                                                                 )
-                    self.groupingdata['variable_type'] = self.groupingdata.apply(
-                        lambda x: 'num' if x['variable_name'] in self.varnum else 'char', axis=1)
+
+                    s_group_map, s_group_data = binning.fit_bin_aprior( data = self.par_train_data,varnum = self.varnum,target = self.target_train,
+                                                       s_bin_num = self.par_num_s_bin,special_code=special_code)
+                    s_group_map['iv'] = 0
+                    s_group_map['woe'] = 0
+                    s_group_map['f_Bad_rate'] = 0
+                    s_group_map['f_N_obs'] = 0
+                    s_group_map['f_N_bad'] = 0
+                    s_group_map['f_group'] = 0
+                    s_group_map['miss_count'] = 0
+                    s_group_report, f_group_report = binning.report(group_info=s_group_map, varchar=self.varchar,varnum=self.varnum)
+                    merge_data = s_group_report[['variable_name', 's_group', 'value', 'label']]
+                    merge_data.loc[merge_data['value'].isnull() == False, 'label'] = merge_data.loc[merge_data[
+                                                                                                        'value'].isnull() == False, 'variable_name'] + '_' + \
+                                                                                     merge_data.loc[merge_data[
+                                                                                                        'value'].isnull() == False, 'value']
+                    merge_data['variable_name'] = 's_group_' + merge_data['variable_name']
+                    aprior_data = s_group_data[self.varchar + list(merge_data['variable_name'].unique()) + [self.target_train]]
+
+                    for var in merge_data['variable_name'].unique():
+                        aprior_data = pd.merge(merge_data[merge_data['variable_name'] == var][['s_group', 'label']],
+                                               aprior_data, left_on='s_group', right_on=var, how='right')
+                        aprior_data['ap_%s' % var] = aprior_data['label']
+                        aprior_data = aprior_data.drop(columns=[var, 'label', 's_group'])
+                    for var in self.varchar:
+                        aprior_data['ap_%s' % var] = var + aprior_data[var]
+                        aprior_data.loc[aprior_data['ap_%s' % var].isnull(), 'ap_%s' % var] = 'miss'
+                        aprior_data = aprior_data.drop(columns=[var])
+                    aprior_data[self.target_train] = s_group_data[self.target_train]
+                    from itertools import combinations
+                    print(list(combinations(aprior_data.columns, 2)))
+
+                    pair_list = list(aprior_data.columns)
+                    pair_list.remove(self.target_train)
+
+                    pair_list = list(combinations(pair_list, 1))
+                    # +list(combinations(pair_list, 2))+list(combinations(pair_list, 3))
+                    print(pair_list)
+
+                    re_df = pd.DataFrame()
+                    for i in range(len(pair_list)):
+                        pair = pair_list[i]
+                        tt = aprior_data[list(pair) + [self.target_train]]
+                        re = tt.groupby(list(pair))[self.target_train].agg(['sum', 'mean', 'count']).reset_index()
+                        re.head()
+                        re['rule'] = re.apply(lambda x: [x[t] for t in list(pair)], axis=1)
+                        re['variable'] = re.apply(lambda x: list(pair), axis=1)
+                        re = re[['sum', 'mean', 'count', 'rule', 'variable']]
+                        re_df = re_df.append(re)
+
+                    re_df['lift'] = re_df['mean'] / np.mean(aprior_data[self.target_train])
+                    re_df = re_df.sort_values(by='lift', ascending=False)
+                    final_rule = re_df[
+                        (re_df['count'] > self.par_min_badnum) & (re_df['mean'] > self.par_min_badrate) & (re_df['lift'] > self.par_min_lift)]
+                    final_rule = final_rule.reset_index(drop=True)
+                    final_rule = final_rule.reset_index()
+                    if len(final_rule)==0:
+                        # 重新fit group
+                        error2 = Toplevel(self.master)
+                        screenwidth = self.master.winfo_screenwidth()
+                        screenheight = self.master.winfo_screenheight()
+                        error2.geometry('%dx%d+%d+%d' % (150, 100, (screenwidth - 150) / 2, (screenheight - 100) / 2))
+                        L2 = Label(error2, text="没有符合条件的数据请重新调整参数")
+                        L2.grid()
+                        self.master.update()
+                    for i in range(len(final_rule)):
+                        rule_t = final_rule.iloc[i]
+                        merge_data = pd.DataFrame(data=np.array([rule_t['rule'] + [1]]), columns=np.array(
+                            rule_t['variable'] + ['flag_rule_' + str(rule_t['index'])]))
+                        aprior_data = pd.merge(aprior_data, merge_data, how='left')
+                        aprior_data.loc[
+                            aprior_data['flag_rule_' + str(rule_t['index'])].isnull() == True, 'flag_rule_' + str(
+                                rule_t['index'])] = 0
+
+                    final_rule['rule_name'] = final_rule['index'].apply(lambda x: 'flag_rule_' + str(x))
+                    self.final_rule=final_rule
+                    self.aprior_data=aprior_data
+
+
+
                 else:
                     #use existing grouping info
                     list_num_exist=list(set(self.groupingdata[self.groupingdata['variable_type']=='num']['variable_name']))
@@ -1216,7 +1205,7 @@ class IGN():
                                                                        target=self.target_train,
                                                                        group_info=self.groupingdata,
                                                                        data_only=True)
-                self.bing_restdata()
+                #self.bing_restdata()
                 try:
                     error2.destroy()
                 except:
@@ -1226,120 +1215,128 @@ class IGN():
                 else:
                     self.not_use=[]
                 #完全划分样本的变量
-                perfect_variavle_check=self.groupingdata.copy()
-                perfect_variavle_check['flag'] = perfect_variavle_check.apply(lambda x: 1 if (x['s_N_bad'] != 0) and (x['s_N_obs'] != x['s_N_bad']) else 0,axis=1)
-                self.not_use=self.not_use+list(set(perfect_variavle_check['variable_name']) - set(perfect_variavle_check[perfect_variavle_check['flag'] == 1]['variable_name']))
+                #perfect_variavle_check=self.groupingdata.copy()
+                #perfect_variavle_check['flag'] = perfect_variavle_check.apply(lambda x: 1 if (x['s_N_bad'] != 0) and (x['s_N_obs'] != x['s_N_bad']) else 0,axis=1)
+                #self.not_use=self.not_use+list(set(perfect_variavle_check['variable_name']) - set(perfect_variavle_check[perfect_variavle_check['flag'] == 1]['variable_name']))
 
-                self.not_use=self.not_use+list(self.IGNvariable_setting[(self.IGNvariable_setting['是否使用'] == '不使用') &
-                                                            (self.IGNvariable_setting['变量角色'] == '自变量') ]['变量名称'])
+                #self.not_use=self.not_use+list(self.IGNvariable_setting[(self.IGNvariable_setting['是否使用'] == '不使用') &
+                #                                            (self.IGNvariable_setting['变量角色'] == '自变量') ]['变量名称'])
                 self.finsh='Y'
                 for child in self.master.winfo_children():
                     child.destroy()
                 self.adjustsetting()
+
     def show_result(self,event):
-        try:
-            if self.temp.state() == 'normal':
-                tk.messagebox.showwarning('错误', "请先处理当前打开窗口")
-        except:
-            self.vaild_flag = self.par_valid_data.empty != True
-            self.reject_flag = self.par_reject_data.empty == False
-            self.oot_flag = self.par_oot_data.empty == False
-            self.temp = Toplevel(self.master)
-            ui_display = UserInterfacea(mainfram=self.temp, f_data=self.f_group_report, s_data=self.s_group_report,
-                                        group_info=self.groupingdata,
-                                        varchar=self.varchar, varnum=self.varnum,
-                                        varchar_reject=self.varchar_reject, varnum_reject=self.varnum_reject,
-                                        varchar_oot=self.varchar_oot, varnum_oot=self.varnum_oot,
-                                        target=self.target_train, target_reject=self.target_reject,
-                                        target_oot=self.target_oot,
-                                        grouped_train_data=self.grouped_train_data,
-                                        grouped_valid_data=self.grouped_valid_data,
-                                        grouped_reject_data=self.grouped_reject_data,
-                                        grouped_oot_data=self.grouped_oot_data,
-                                        train_data=self.par_train_data, valid_data=self.par_valid_data,
-                                        reject_data=self.par_reject_data, oot_data=self.par_oot_data,
-                                        vaild_flag=self.vaild_flag, reject_flag=self.reject_flag,oot_flag=self.oot_flag,
-                                        flag_timeid_oot=self.flag_timeid_oot,
-                                        timeid_oot=self.timeid_oot,
-                                        flag_timeid_reject=self.flag_timeid_reject,
-                                        timeid_reject=self.timeid_reject,
-                                        flag_timeid_train=self.flag_timeid_train,
-                                        timeid_train=self.timeid_train,
-                                        not_use=self.not_use,
-                                        project_path=self.project_path,
-                                        node_name=self.node_name
-                                        )
-            self.master.wait_window(self.temp)
-            if (ui_display.flag_f_needsave==True)&((self.groupingdata.equals(ui_display.group_info_modify))== False):
-                self.groupingdata=ui_display.group_info_modify
-                self.not_use=ui_display.not_use
-                error2 = Toplevel(self.master)
-                screenwidth = self.master.winfo_screenwidth()
-                screenheight = self.master.winfo_screenheight()
-                error2.geometry('%dx%d+%d+%d' % (150, 100, (screenwidth - 150) / 2, (screenheight - 100) / 2))
-                L2 = Label(error2, text="保存中 \n 死鬼，不要急 (●'◡'●)")
-                L2.grid()
-                self.master.update()
-                self.grouped_train_data = binning.fit_bin_existing(data=self.par_train_data,
-                                                                   varnum=self.varnum,
-                                                                   varchar=self.varchar,
-                                                                   target=self.target_train,
-                                                                   group_info=self.groupingdata,
-                                                                   data_only=True)
-                self.bing_restdata()
-                node_save_path = self.project_path + '/' + '%s.IGN' % self.node_name
-                nowTime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-                self.node_setting = {'node_type': 'IGN',
-                                     'node_name': self.node_name,
-                                     'node_save_path': node_save_path,
-                                     'par_use_freezing_flag': self.par_use_freezing_flag,
-                                     'par_import_groupdataname': self.par_import_groupdataname,
-                                     'par_num_s_bin': self.par_num_s_bin,
-                                     'par_use_specialcode_flag': self.par_use_specialcode_flag,
-                                     'par_specialcode_data': self.par_specialcode_data,
-                                     'par_sepcialcode_dataname': self.par_sepcialcode_dataname,
-                                     'par_char_restric_flag': self.par_char_restric_flag,
-                                     'par_char_restric_num': self.par_char_restric_num,
-                                     'par_char_restric_pct': self.par_char_restric_pct,
-                                     'par_tree_criterion': self.par_tree_criterion,
-                                     'par_num_f_group': self.par_num_f_group,
-                                     'par_min_num_group': self.par_min_num_group,
-                                     'par_min_pct_group': self.par_min_pct_group,
-                                     'par_variable_reject_flag': self.par_variable_reject_flag,
-                                     'par_variable_reject_iv': self.par_variable_reject_iv,
-                                     'IGNvariable_setting': self.IGNvariable_setting,
-                                     'time': nowTime,
-                                     'previous_node_name': [self.par_train_dataname, self.par_reject_dataname,
-                                                            self.par_oot_dataname],
-                                     'previous_node_time': [self.par_train_dataname_time,
-                                                            self.par_reject_dataname_time,
-                                                            self.par_oot_dataname_time],
-                                     # 'check_change': [{'node_name': self.node_name, 'node_time': nowTime}]
-                                     #                 + self.previous_train_check_change + self.previous_reject_check_change +
-                                     #                 self.previous_oot_check_change,
-                                     'data_variable_setting': self.par_traindatavariable_setting,
-                                     'reject_data_variable_setting': self.par_rejectdatavariable_setting,
-                                     'oot_data_variable_setting': self.par_ootdatavariable_setting,
-                                     'use_node': [self.node_name] + self.previous_train_node_usedlist
-                                                 + self.previous_reject_node_usedlist + self.previous_oot_node_usedlist
-                                     }
-                try:
-                    error2.destroy()
-                except:
-                    pass
-            else:
-                try:
-                    self.node_setting
-                except:
-                    self.node_setting=self.import_node[0]
-            self.groupingdata['variable_type']=self.groupingdata.apply(lambda x: 'num' if x['variable_name'] in self.varnum else 'char', axis=1)
+
+        tt = Toplevel()
+        tt.title('规则集')
+        screenwidth = tt.winfo_screenwidth()
+        screenheight = tt.winfo_screenheight()
+        width = tt.winfo_screenwidth() * 0.6
+        height = tt.winfo_screenheight() * 0.8
+        tt.geometry('%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
+        f = Frame(tt)
+
+        f.grid(column=0, row=1, sticky=(E, W))
+        screen_width = f.winfo_screenwidth() * 0.6
+        screen_height = f.winfo_screenheight() * 0.8
+        show_df=self.final_rule[['rule','mean','lift','sum','count']]
+        show_df.columns=['规则','坏账率','提升率','坏客户数','客户数']
+        table = ptm = Table(f, dataframe=show_df, height=screen_height, width=screen_width)
+        ptm.show()
+
+        plot_df = self.aprior_data.copy()
+        plot_df['rm__order__'] = plot_df.index
+        tt = self.aprior_data.groupby(['flag_rule_' + str(x) for x in range(len(self.final_rule))])[self.target_train].agg(
+            {'count', 'mean'}).reset_index()
+        tt['target'] = tt.apply(
+            lambda x: "-".join(set([int(x[t]) * t for t in ['flag_rule_' + str(m) for m in range(len(self.final_rule))]])),
+            axis=1)
+        tt['label'] = tt.apply(lambda x: "&".join(
+            set([int(x['flag_rule_%s' % m]) * str(self.final_rule['rule'][m]) for m in range(len(self.final_rule))])), axis=1)
+
+        tt['start'] = tt.apply(
+            lambda x: set([int(x[t]) * t for t in ['flag_rule_' + str(m) for m in range(len(self.final_rule))]]), axis=1)
+        links_list = []
+        nodes_list = []
+        for i in range(len(tt)):
+            for s in tt.iloc[i]['start']:
+                if s != '':
+                    links_list.append({'source': s, 'target': tt.iloc[i]['target'], 'value': tt.iloc[i]['count'],
+                                       'badrate': tt.iloc[i]['mean']})
+                    nodes_list.append(s)
+                    nodes_list.append(tt.iloc[i]['target'])
+
+                    # nodes_list.append({'name':s})
+                    # nodes_list.append({'name':tt.iloc[i]['target']})
+        nodes_list = list(set(nodes_list))
+        nodes_list = [{'name': x} for x in nodes_list]
+
+
+        pio.renderers.default = 'browser'
+
+        def rgb_to_hex(rgb):
+            return '#%02x%02x%02x' % rgb
+
+        dd = pd.DataFrame(links_list)
+        labels = list(set(list(dd['source']) + list(dd['target'])))
+        dd['num'] = dd['value'] * dd['badrate']
+        fi = dd.groupby('source')['num', 'value'].sum().reset_index()
+        fi['rate'] = fi['num'] / fi['value']
+
+        badrate_df = pd.concat([fi[['source', 'rate']].rename({'source': 'label', 'rate': 'rate'}, axis=1),
+                                dd[['target', 'badrate']].rename({'target': 'label', 'badrate': 'rate'}, axis=1)])
+
+        comment_df = pd.concat(
+            [self.final_rule[['rule_name', 'rule']].rename({'rule_name': 'label', 'rule': 'comment'}, axis=1),
+             tt[['target', 'label']].rename({'target': 'label', 'label': 'comment'}, axis=1)])
+
+        bad_rate_list = [list(badrate_df.loc[badrate_df['label'] == m, 'rate'])[0] for m in labels]
+
+        commend = [list(comment_df.loc[comment_df['label'] == m, 'comment'])[0] for m in labels]
+
+        col_code = [rgb_to_hex((255 - int(x * 255), 255 - int(x * 255), 255 - int(x * 255))) for x in bad_rate_list]
+        #col_code = [rgb(256 - int(x * 255), 256 - int(x * 255), 256 - int(x * 255)) for x in bad_rate_list]
+        mergedd = pd.DataFrame(labels)
+        mergedd['order'] = mergedd.index
+        mergedd = mergedd.rename({0: 'var'}, axis=1)
+
+        sankey_df = pd.merge(dd, mergedd, left_on='source', right_on='var', how='left')
+        sankey_df = sankey_df.rename({'order': 'source_order'}, axis=1)
+
+        sankey_df = pd.merge(sankey_df, mergedd, left_on='target', right_on='var', how='left')
+        sankey_df = sankey_df.rename({'order': 'target_order'}, axis=1)
+
+        fig = go.Figure(data=[go.Sankey(
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="black", width=0.5),
+                label=[commend[m] for m in range(len(commend))],
+                color=col_code,
+                customdata=[[commend[m], round(bad_rate_list[m], 3)] for m in range(len(commend))],
+                hovertemplate='Node: %{label} <br /> Rules:%{customdata[0]} <br /> badrate: %{customdata[1]}<extra></extra>',
+            ),
+            link=dict(
+                source=list(sankey_df['source_order']),  # indices correspond to labels, eg A1, A2, A1, B1, ...
+                target=list(sankey_df['target_order']),
+                value=list(sankey_df['value']),
+                color=[rgb_to_hex((255 - int(x * 255), 255 - int(x * 255), 255 - int(x * 255))) for x in
+                       list(sankey_df['badrate'])]
+            ))])
+        fig.update_layout(title_text="规则图", font_size=10)
+        fig.show()
+
+
     def save_project(self,event):
         try:
-            node_save_path = self.project_path + '/' + '%s.IGN' % self.node_name
-
-            group_result=[self.groupingdata,self.f_group_report,self.s_group_report,self.not_use]
+            node_save_path = self.project_path + '/' + '%s.PLC' % self.node_name
+            self.f_group_report=pd.DataFrame()
+            self.s_group_report=pd.DataFrame()
+            self.not_use=[]
+            group_result=[self.groupingdata,self.f_group_report,self.s_group_report,self.not_use,self.final_rule]
             data_save = (self.node_setting, group_result,self.grouped_train_data,self.grouped_valid_data,
-                         self.grouped_reject_data,self.grouped_oot_data)
+                         self.grouped_reject_data,self.grouped_oot_data,self.aprior_data)
             error2 = Toplevel(self.master)
             screenwidth = self.master.winfo_screenwidth()
             screenheight = self.master.winfo_screenheight()

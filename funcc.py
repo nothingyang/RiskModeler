@@ -1,5 +1,5 @@
 import pandas as pd
-from .base import group_func
+from base import group_func
 import numpy as np
 from joblib import Parallel, delayed
 import joblib
